@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>CROWN COURT asset prep</title>
+<style>
+  body{margin:0;background:#141018;color:#eee;font:13px/1.4 monospace}
+  #stageWrap{padding:8px}
+  canvas{background:
+     linear-gradient(45deg,#2a2a33 25%,transparent 25%,transparent 75%,#2a2a33 75%),
+     linear-gradient(45deg,#2a2a33 25%,#1d1d24 25%,#1d1d24 75%,#2a2a33 75%);
+    background-size:16px 16px;background-position:0 0,8px 8px;max-width:100%}
+  #log{padding:8px;white-space:pre-wrap;color:#8ef}
+</style></head>
+<body>
+<div id="stageWrap"><canvas id="c" width="1200" height="900"></canvas></div>
+<div id="log"></div>
+<script>
+"use strict";
+const logEl = document.getElementById('log');
+const log = m => { logEl.textContent += m + "\n"; };
+const c = document.getElementById('c'), x = c.getContext('2d');
+
+const SHEETS = {
+  obj:    '/.raw/game-objects-sheet.png',
+  player: '/.raw/player-sprite-sheet.png',
+  court:  '/.raw/tel-aviv-court-background.png',
+  ui:     '/.raw/ui-assets-sheet.png'
+};
+window.IMG = {};
+const load = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+
+window.mk = (w, h) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; return cv; };
+
+/* ---------- connected components ---------- */
+window.labelSheet = (src, alphaMin) => {
+  const W = src.width, H = src.height;
+  const cv = mk(W, H), g = cv.getContext('2d'); g.drawImage(src, 0, 0);
+  const d = g.getImageData(0, 0, W, H).data;
+  const lab = new Int32Array(W * H).fill(-1);
+  const comps = [], qx = new Int32Array(W * H), qy = new Int32Array(W * H);
+  for (let sy = 0; sy < H; sy++) for (let sx = 0; sx < W; sx++) {
+    const si = sy * W + sx;
+    if (lab[si] !== -1 || d[si * 4 + 3] <= alphaMin) continue;
+    const id = comps.length; let head = 0, tail = 0;
+    lab[si] = id; qx[tail] = sx; qy[tail] = sy; tail++;
+    let x0 = sx, x1 = sx, y0 = sy, y1 = sy, area = 0;
+    while (head < tail) {
+      const px = qx[head], py = qy[head]; head++; area++;
+      if (px < x0) x0 = px; if (px > x1) x1 = px;
+      if (py < y0) y0 = py; if (py > y1) y1 = py;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = px + dx, ny = py + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const ni = ny * W + nx;
+        if (lab[ni] !== -1 || d[ni * 4 + 3] <= alphaMin) continue;
+        lab[ni] = id; qx[tail] = nx; qy[tail] = ny; tail++;
+      }
+    }
+    comps.push({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, area, id, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 });
+  }
+  return { W, H, lab, data: d, comps };
+};
+
+/* assign every blob to the nearest named anchor, then union each group */
+window.groupByAnchors = (S, anchors, maxDist) => {
+  const out = {};
+  for (const k in anchors) out[k] = { ids: new Set(), x: 1e9, y: 1e9, x1: -1, y1: -1, area: 0 };
+  for (const cp of S.comps) {
+    let best = null, bd = Infinity;
+    for (const k in anchors) {
+      const d = Math.hypot(cp.cx - anchors[k][0], cp.cy - anchors[k][1]);
+      if (d < bd) { bd = d; best = k; }
+    }
+    if (bd > maxDist) continue;
+    const g = out[best];
+    g.ids.add(cp.id); g.area += cp.area;
+    g.x = Math.min(g.x, cp.x); g.y = Math.min(g.y, cp.y);
+    g.x1 = Math.max(g.x1, cp.x + cp.w); g.y1 = Math.max(g.y1, cp.y + cp.h);
+  }
+  for (const k in out) { const g = out[k]; g.w = g.x1 - g.x; g.h = g.y1 - g.y; }
+  return out;
+};
+
+/* copy only the pixels belonging to this group - neighbours can't bleed in */
+window.extractGroup = (S, g) => {
+  const cv = mk(g.w, g.h), ctx2 = cv.getContext('2d');
+  const out = ctx2.createImageData(g.w, g.h), o = out.data;
+  for (let y = 0; y < g.h; y++) for (let xx = 0; xx < g.w; xx++) {
+    const si = (g.y + y) * S.W + (g.x + xx);
+    if (!g.ids.has(S.lab[si])) continue;
+    const s = si * 4, t = (y * g.w + xx) * 4;
+    o[t] = S.data[s]; o[t + 1] = S.data[s + 1]; o[t + 2] = S.data[s + 2]; o[t + 3] = S.data[s + 3];
+  }
+  ctx2.putImageData(out, 0, 0); return cv;
+};
+
+/* ---------- generic helpers ---------- */
+window.trimBounds = (cv, a) => {
+  a = a === undefined ? 10 : a;
+  const g = cv.getContext('2d'), d = g.getImageData(0, 0, cv.width, cv.height).data;
+  let x0 = cv.width, y0 = cv.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < cv.height; y++) for (let xx = 0; xx < cv.width; xx++)
+    if (d[(y * cv.width + xx) * 4 + 3] > a) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  return x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+};
+window.tidy = (cv, targetH, targetW) => {
+  const b = trimBounds(cv); if (!b) return cv;
+  const t = mk(b.w, b.h);
+  t.getContext('2d').drawImage(cv, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+  let s = 1;
+  if (targetH) s = targetH / t.height;
+  if (targetW) s = Math.min(s === 1 ? Infinity : s, targetW / t.width);
+  if (!isFinite(s) || s === 1) return t;
+  const o = mk(Math.max(1, Math.round(t.width * s)), Math.max(1, Math.round(t.height * s)));
+  const g = o.getContext('2d'); g.imageSmoothingQuality = 'high';
+  g.drawImage(t, 0, 0, o.width, o.height);
+  return o;
+};
+
+/* ----- background knockout for the baked-in gradient sheets ----- */
+window.knockout = (cv, tol, feather) => {
+  tol = tol === undefined ? 14 : tol;
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const img = g.getImageData(0, 0, W, H), d = img.data;
+  const bg = new Uint8Array(W * H);
+  const qx = new Int32Array(W * H), qy = new Int32Array(W * H);
+  let head = 0, tail = 0;
+  const push = (px, py) => { const i = py * W + px; if (!bg[i]) { bg[i] = 1; qx[tail] = px; qy[tail] = py; tail++; } };
+  for (let i = 0; i < W; i++) { push(i, 0); push(i, H - 1); }
+  for (let j = 0; j < H; j++) { push(0, j); push(W - 1, j); }
+  const near = (ia, ib) => {
+    const a = ia * 4, b = ib * 4;
+    return Math.abs(d[a] - d[b]) <= tol && Math.abs(d[a + 1] - d[b + 1]) <= tol && Math.abs(d[a + 2] - d[b + 2]) <= tol;
+  };
+  while (head < tail) {
+    const px = qx[head], py = qy[head], pi = py * W + px; head++;
+    if (px > 0     && !bg[pi - 1] && near(pi, pi - 1)) push(px - 1, py);
+    if (px < W - 1 && !bg[pi + 1] && near(pi, pi + 1)) push(px + 1, py);
+    if (py > 0     && !bg[pi - W] && near(pi, pi - W)) push(px, py - 1);
+    if (py < H - 1 && !bg[pi + W] && near(pi, pi + W)) push(px, py + 1);
+  }
+  for (let i = 0; i < W * H; i++) if (bg[i]) d[i * 4 + 3] = 0;
+  g.putImageData(img, 0, 0);
+  for (let pass = 0; pass < (feather || 0); pass++) {
+    const im2 = g.getImageData(0, 0, W, H), d2 = im2.data;
+    const kill = [];
+    for (let y = 1; y < H - 1; y++) for (let xx = 1; xx < W - 1; xx++) {
+      const i = y * W + xx;
+      if (d2[i * 4 + 3] > 0 && (d2[(i - 1) * 4 + 3] === 0 || d2[(i + 1) * 4 + 3] === 0 ||
+                                d2[(i - W) * 4 + 3] === 0 || d2[(i + W) * 4 + 3] === 0)) kill.push(i);
+    }
+    for (const i of kill) d2[i * 4 + 3] = 0;
+    g.putImageData(im2, 0, 0);
+  }
+  let kept = 0; for (let i = 0; i < W * H; i++) if (!bg[i]) kept++;
+  return +(kept / (W * H)).toFixed(3);
+};
+
+/* ---------- display ---------- */
+window.showAll = (canvases, cols, cell) => {
+  cols = cols || 4; cell = cell || 280;
+  const rows = Math.ceil(canvases.length / cols);
+  c.width = cols * cell; c.height = rows * cell;
+  x.clearRect(0, 0, c.width, c.height);
+  canvases.forEach((cv, i) => {
+    const cx = (i % cols) * cell, cy = Math.floor(i / cols) * cell;
+    const s = Math.min((cell - 22) / cv.width, (cell - 22) / cv.height);
+    x.drawImage(cv, cx + (cell - cv.width * s) / 2, cy + (cell - cv.height * s) / 2, cv.width * s, cv.height * s);
+    x.strokeStyle = '#ff3b6b'; x.lineWidth = 1; x.strokeRect(cx + .5, cy + .5, cell - 1, cell - 1);
+    x.fillStyle = '#ffd23f'; x.font = 'bold 13px monospace'; x.textBaseline = 'bottom';
+    x.fillText((cv.label || i) + ' ' + cv.width + 'x' + cv.height, cx + 6, cy + cell - 6);
+  });
+  return c.width + 'x' + c.height;
+};
+window.showOne = (cv, bgCss) => {
+  c.width = cv.width; c.height = cv.height;
+  x.clearRect(0, 0, c.width, c.height);
+  if (bgCss) { x.fillStyle = bgCss; x.fillRect(0, 0, c.width, c.height); }
+  x.drawImage(cv, 0, 0);
+  return c.width + 'x' + c.height;
+};
+
+/* ---------- saving ---------- */
+window.savePNG = async (path, cv) => (await fetch('/save', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ path, dataUrl: cv.toDataURL('image/png') })
+})).json();
+window.saveJPEG = async (path, cv, q) => (await fetch('/save', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ path, dataUrl: cv.toDataURL('image/jpeg', q === undefined ? 0.84 : q) })
+})).json();
+
+/* ---------- boot: load sheets and cut the object sprites ---------- */
+window.OBJ_ANCHORS = {
+  hoop:        [900, 315],
+  ball:        [261, 287],
+  crown:       [232, 692],
+  trailWarm:   [575, 753],
+  trailRed:    [850, 750],
+  trailSmoke:  [1080, 754],
+  burst:       [229, 1047],
+  sparkle:     [612, 1041],
+  swoosh:      [984, 1048]
+};
+window.ready = (async () => {
+  for (const k in SHEETS) IMG[k] = await load(SHEETS[k]);
+  log('sheets: ' + Object.keys(IMG).map(k => k + ' ' + IMG[k].width + 'x' + IMG[k].height).join('  '));
+  window.S_OBJ = labelSheet(IMG.obj, 20);
+  log('object blobs: ' + S_OBJ.comps.length);
+  window.G_OBJ = groupByAnchors(S_OBJ, OBJ_ANCHORS, 420);
+  window.SPR = {};
+  for (const k in G_OBJ) {
+    const g = G_OBJ[k];
+    if (g.area === 0) { log('EMPTY ' + k); continue; }
+    const cv = extractGroup(S_OBJ, g); cv.label = k;
+    SPR[k] = cv;
+  }
+  log('object sprites: ' + Object.keys(SPR).map(k => k + ' ' + SPR[k].width + 'x' + SPR[k].height).join('  '));
+  showAll(Object.values(SPR), 3, 300);
+  return true;
+})();
+</script>
+</body>
+</html>

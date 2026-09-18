@@ -1,0 +1,22 @@
+{
+  "name": "crown-court",
+  "version": "1.0.0",
+  "description": "CROWN COURT - swipe-to-dunk arcade basketball",
+  "scripts": {
+    "dev": "node server.mjs",
+    "www": "node build-www.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "apk": "bash build-apk.sh",
+    "apk:windows": "powershell -NoProfile -File build-apk.ps1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "CROWN COURT",
+  "short_name": "Crown Court",
+  "description": "Swipe-to-dunk arcade basketball. Rule the rim.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#160d12",
+  "theme_color": "#160d12",
+  "icons": [
+    {
+      "src": "assets/ui/crest.webp",
+      "sizes": "420x445",
+      "type": "image/webp",
+      "purpose": "any"
+    }
+  ]
+}

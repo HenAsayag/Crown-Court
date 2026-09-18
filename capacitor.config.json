@@ -1,0 +1,12 @@
+{
+  "appId": "com.henasayag.crowncourt",
+  "appName": "CROWN COURT",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#160d12"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

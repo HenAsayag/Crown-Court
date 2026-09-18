@@ -1,0 +1,31 @@
+# Dependencies and local runtimes
+node_modules/
+.toolchain/
+.raw/
+.claude/
+.codex/
+.agents/
+
+# Generated web/native builds
+www/
+*.apk
+*.aab
+*.log
+coverage/
+test-results/
+playwright-report/
+android/**/build/
+android/.gradle/
+android/local.properties
+
+# Credentials and machine-specific settings
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.pem
+*.p12
+local.properties
+.DS_Store
+Thumbs.db

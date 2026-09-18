@@ -1,0 +1,2723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07070d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="RIM CITY - one-thumb arcade basketball. Own every angle.">
+<title>RIM CITY</title>
+<style>
+/* ============================================================
+   RIM CITY - flat neon-on-dark art direction
+   near-black court / electric cyan / hot magenta / amber / lime
+   ============================================================ */
+:root{
+  --bg:#07070d;
+  --bg2:#0f0f1e;
+  --panel:rgba(16,16,32,.92);
+  --cyan:#22e6ff;
+  --magenta:#ff2e93;
+  --amber:#ffb020;
+  --lime:#b6ff3a;
+  --ink:#f2f4ff;
+  --dim:#8a8fb5;
+  --purple:#8b5cf6;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --pop:cubic-bezier(.34,1.56,.64,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{
+  height:100%;background:#000;overflow:hidden;
+  font-family:"Arial Rounded MT Bold","Nunito","Baloo 2",ui-rounded,"Segoe UI",system-ui,-apple-system,sans-serif;
+  color:var(--ink);
+  touch-action:none;overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none;
+}
+body{display:flex;align-items:center;justify-content:center}
+
+/* ---- 9:16 letterboxed stage ---- */
+#stage{
+  position:relative;aspect-ratio:9/16;
+  height:100dvh;max-height:100dvh;width:auto;max-width:100vw;
+  background:var(--bg);overflow:hidden;
+  box-shadow:0 0 90px rgba(34,230,255,.09);
+}
+@media (max-aspect-ratio:9/16){ #stage{width:100vw;height:auto} }
+#game{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* ---- generic screen layer ---- */
+.screen{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  padding:26px 22px;z-index:20;
+  opacity:0;pointer-events:none;transform:translateY(14px) scale(.985);
+  transition:opacity .34s var(--ease),transform .42s var(--ease);
+  background:radial-gradient(120% 90% at 50% 0%,rgba(20,20,45,.86),rgba(4,4,10,.96));
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+}
+.screen.on{opacity:1;pointer-events:auto;transform:none}
+.screen.scroll{justify-content:flex-start;overflow-y:auto;overscroll-behavior:contain}
+
+/* ---- type ---- */
+.logo{
+  font-size:clamp(44px,13vw,78px);line-height:.88;letter-spacing:-.035em;
+  text-align:center;font-weight:900;
+  background:linear-gradient(175deg,var(--cyan) 6%,#77aaff 40%,var(--magenta) 96%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 22px rgba(34,230,255,.4));
+}
+.tag{font-size:13px;letter-spacing:.34em;color:var(--dim);text-transform:uppercase;text-align:center}
+.h2{font-size:24px;letter-spacing:.06em;color:var(--ink);text-transform:uppercase}
+.sub{font-size:12.5px;color:var(--dim);text-align:center;line-height:1.55;letter-spacing:.02em}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---- buttons ---- */
+.btn{
+  position:relative;border:0;cursor:pointer;font:inherit;font-weight:900;
+  padding:15px 26px;border-radius:17px;min-width:214px;
+  font-size:17px;letter-spacing:.11em;text-transform:uppercase;
+  color:#04040a;background:linear-gradient(180deg,var(--cyan),#12b9d8);
+  box-shadow:0 7px 0 #0a7f97,0 12px 26px rgba(34,230,255,.3);
+  transition:transform .13s var(--pop),box-shadow .13s var(--ease),filter .2s;
+}
+.btn:active{transform:translateY(6px) scale(.985);box-shadow:0 1px 0 #0a7f97,0 4px 12px rgba(34,230,255,.22)}
+.btn.pink{background:linear-gradient(180deg,var(--magenta),#c9166d);box-shadow:0 7px 0 #8c0f4c,0 12px 26px rgba(255,46,147,.3);color:#fff}
+.btn.pink:active{box-shadow:0 1px 0 #8c0f4c,0 4px 12px rgba(255,46,147,.22)}
+.btn.gold{background:linear-gradient(180deg,var(--amber),#d47f00);box-shadow:0 7px 0 #8d5500,0 12px 26px rgba(255,176,32,.28)}
+.btn.gold:active{box-shadow:0 1px 0 #8d5500,0 4px 12px rgba(255,176,32,.2)}
+.btn.ghost{
+  background:transparent;color:var(--ink);
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.17);padding:13px 22px;font-size:14px;min-width:170px;
+}
+.btn.ghost:active{transform:scale(.96);box-shadow:inset 0 0 0 2px rgba(255,255,255,.3)}
+.btn.sm{min-width:0;padding:11px 18px;font-size:13px;border-radius:13px}
+.btn[disabled]{filter:grayscale(.85) brightness(.62);pointer-events:none}
+.row{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+
+/* ---- HUD ---- */
+#hud{position:absolute;inset:0;z-index:10;pointer-events:none;
+  padding:calc(12px + env(safe-area-inset-top)) 14px 0;
+  opacity:0;transition:opacity .3s var(--ease)}
+#hud.on{opacity:1}
+#hudTop{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.icobtn{
+  pointer-events:auto;width:44px;height:44px;border:0;border-radius:14px;cursor:pointer;
+  background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.13);
+  color:var(--ink);font-size:17px;display:grid;place-items:center;
+  transition:transform .14s var(--pop),background .2s;backdrop-filter:blur(6px);
+}
+.icobtn:active{transform:scale(.88);background:rgba(255,255,255,.15)}
+#scoreWrap{text-align:center;flex:1;margin-top:-2px}
+#score{font-size:56px;font-weight:900;line-height:.92;letter-spacing:-.03em;
+  text-shadow:0 0 26px rgba(34,230,255,.55),0 3px 0 rgba(0,0,0,.5);
+  transition:transform .13s var(--pop),color .2s}
+#score.bump{transform:scale(1.22)}
+#combo{font-size:14px;font-weight:900;letter-spacing:.2em;color:var(--amber);height:18px;
+  opacity:0;transform:translateY(-6px) scale(.9);
+  transition:opacity .22s var(--ease),transform .3s var(--pop),color .2s}
+#combo.on{opacity:1;transform:none}
+#combo.fire{color:var(--magenta);text-shadow:0 0 16px rgba(255,46,147,.8)}
+#rightCol{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.chip{
+  display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:12px;
+  background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.12);
+  font-size:14px;font-weight:900;letter-spacing:.04em;backdrop-filter:blur(6px);
+  transition:transform .14s var(--pop)}
+.chip.bump{transform:scale(1.14)}
+.chip .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);box-shadow:0 0 9px var(--amber)}
+#lives{display:flex;gap:5px;margin-top:2px}
+.life{width:11px;height:11px;border-radius:50%;background:var(--magenta);
+  box-shadow:0 0 10px rgba(255,46,147,.85);transition:all .3s var(--pop)}
+.life.gone{background:rgba(255,255,255,.13);box-shadow:none;transform:scale(.62)}
+#timer{font-size:22px;font-weight:900;letter-spacing:.04em;color:var(--cyan)}
+#timer.low{color:var(--magenta);animation:pulse .55s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.13)}}
+#objective{
+  position:absolute;left:0;right:0;top:120px;text-align:center;font-size:12px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--lime);padding:0 26px;
+  text-shadow:0 0 14px rgba(182,255,58,.5)}
+
+/* ---- toasts (achievements) ---- */
+#toasts{position:absolute;left:0;right:0;bottom:calc(20px + env(safe-area-inset-bottom));
+  z-index:40;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 16px}
+.toast{
+  display:flex;align-items:center;gap:11px;padding:11px 17px 11px 13px;border-radius:15px;
+  background:linear-gradient(120deg,rgba(255,176,32,.96),rgba(255,46,147,.94));
+  color:#140a00;font-weight:900;max-width:100%;
+  box-shadow:0 12px 30px rgba(0,0,0,.5);
+  animation:toastIn .45s var(--pop) both,toastOut .4s var(--ease) 2.5s both;
+}
+.toast .ic{font-size:22px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
+.toast .tt{font-size:13.5px;letter-spacing:.06em;line-height:1.25}
+.toast .ts{font-size:11px;opacity:.78;font-weight:700;letter-spacing:.02em}
+@keyframes toastIn{from{opacity:0;transform:translateY(26px) scale(.86)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-10px) scale(.95)}}
+
+/* ---- cards / shop ---- */
+.panel{width:100%;max-width:340px;background:var(--panel);border-radius:22px;padding:16px;
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.08),0 18px 44px rgba(0,0,0,.5)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;width:100%;max-width:340px}
+.card{
+  position:relative;border-radius:17px;padding:11px 10px 10px;cursor:pointer;
+  background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.09);
+  display:flex;flex-direction:column;align-items:center;gap:6px;overflow:hidden;
+  transition:transform .16s var(--pop),box-shadow .22s var(--ease),background .22s}
+.card:active{transform:scale(.955)}
+.card.owned{box-shadow:inset 0 0 0 1.5px rgba(34,230,255,.4)}
+.card.equipped{background:rgba(34,230,255,.12);box-shadow:inset 0 0 0 2.5px var(--cyan),0 0 26px rgba(34,230,255,.26)}
+.card.locked{opacity:.66}
+.card canvas{width:56px;height:56px;display:block}
+.card .cn{font-size:12px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;text-align:center}
+.card .cs{font-size:10px;color:var(--dim);text-align:center;line-height:1.35;min-height:26px;letter-spacing:.01em}
+.card .cp{font-size:11.5px;font-weight:900;color:var(--amber);letter-spacing:.06em}
+.card .cp.eq{color:var(--cyan)}
+.tabs{display:flex;gap:8px;background:rgba(255,255,255,.05);padding:5px;border-radius:15px}
+.tab{border:0;background:transparent;color:var(--dim);font:inherit;font-weight:900;font-size:12.5px;
+  letter-spacing:.11em;text-transform:uppercase;padding:9px 18px;border-radius:11px;cursor:pointer;
+  transition:all .24s var(--ease)}
+.tab.on{background:rgba(34,230,255,.16);color:var(--cyan);box-shadow:inset 0 0 0 1.5px rgba(34,230,255,.34)}
+
+/* ---- lists ---- */
+.list{width:100%;max-width:340px;display:flex;flex-direction:column;gap:6px}
+.li{display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:13px;
+  background:rgba(255,255,255,.045);font-size:13px;box-shadow:inset 0 0 0 1.2px rgba(255,255,255,.06)}
+.li .rk{font-weight:900;color:var(--amber);width:23px;font-size:15px}
+.li .nm{flex:1;font-weight:900;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .md{font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+.li .sc{font-weight:900;color:var(--cyan);font-size:15px}
+.li.me{background:rgba(139,92,246,.17);box-shadow:inset 0 0 0 1.5px rgba(139,92,246,.45)}
+.ach{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:13px;
+  background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1.2px rgba(255,255,255,.06)}
+.ach.got{background:rgba(182,255,58,.1);box-shadow:inset 0 0 0 1.4px rgba(182,255,58,.34)}
+.ach .ic{font-size:21px;width:28px;text-align:center;filter:grayscale(1);opacity:.4}
+.ach.got .ic{filter:none;opacity:1}
+.ach .tx{flex:1}
+.ach .tx b{display:block;font-size:12.5px;letter-spacing:.05em}
+.ach .tx span{font-size:10.5px;color:var(--dim);letter-spacing:.02em}
+
+/* ---- mode picker ---- */
+.mode{
+  width:100%;max-width:340px;display:flex;align-items:center;gap:13px;padding:15px 17px;border-radius:19px;
+  cursor:pointer;border:0;font:inherit;color:var(--ink);text-align:left;
+  background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.09);
+  transition:transform .16s var(--pop),box-shadow .24s var(--ease),background .24s}
+.mode:active{transform:scale(.97)}
+.mode .mi{font-size:29px;width:38px;text-align:center}
+.mode b{display:block;font-size:16.5px;letter-spacing:.08em;text-transform:uppercase}
+.mode span{font-size:11.5px;color:var(--dim);letter-spacing:.02em}
+.mode .best{margin-left:auto;font-size:11px;color:var(--amber);font-weight:900;text-align:right;letter-spacing:.04em}
+.mode.c1{box-shadow:inset 0 0 0 1.5px rgba(34,230,255,.34)}
+.mode.c2{box-shadow:inset 0 0 0 1.5px rgba(255,176,32,.34)}
+.mode.c3{box-shadow:inset 0 0 0 1.5px rgba(255,46,147,.34)}
+
+/* ---- level select ---- */
+.lvGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:340px}
+.lv{aspect-ratio:1;border:0;border-radius:14px;cursor:pointer;font:inherit;font-weight:900;font-size:17px;
+  background:rgba(255,255,255,.05);color:var(--dim);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.08);
+  display:grid;place-items:center;transition:transform .15s var(--pop),all .22s var(--ease)}
+.lv:active{transform:scale(.9)}
+.lv.open{color:var(--cyan);box-shadow:inset 0 0 0 1.8px rgba(34,230,255,.45)}
+.lv.done{background:linear-gradient(160deg,rgba(182,255,58,.22),rgba(34,230,255,.14));color:var(--lime);
+  box-shadow:inset 0 0 0 1.8px rgba(182,255,58,.5)}
+.lv.lock{opacity:.4}
+
+/* ---- game over ---- */
+#goCanvas{width:150px;height:150px;display:block;filter:drop-shadow(0 12px 22px rgba(0,0,0,.55))}
+.bigscore{font-size:70px;font-weight:900;line-height:.9;letter-spacing:-.04em;
+  background:linear-gradient(180deg,#ffffff,var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 20px rgba(34,230,255,.35))}
+.statRow{display:flex;gap:9px;width:100%;max-width:340px}
+.stat{flex:1;padding:10px 6px;border-radius:14px;background:rgba(255,255,255,.05);text-align:center;
+  box-shadow:inset 0 0 0 1.2px rgba(255,255,255,.07)}
+.stat b{display:block;font-size:20px;letter-spacing:-.01em}
+.stat span{font-size:9.5px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase}
+.newbest{font-size:13px;font-weight:900;letter-spacing:.24em;color:var(--lime);text-transform:uppercase;
+  animation:glowPulse 1.1s infinite}
+@keyframes glowPulse{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.07)}}
+
+/* ---- name input ---- */
+.nameIn{
+  background:rgba(255,255,255,.06);border:0;box-shadow:inset 0 0 0 1.6px rgba(255,255,255,.15);
+  border-radius:13px;padding:11px 15px;color:var(--ink);font:inherit;font-weight:900;font-size:15px;
+  letter-spacing:.14em;text-align:center;text-transform:uppercase;width:160px;outline:none;
+  transition:box-shadow .24s var(--ease)}
+.nameIn:focus{box-shadow:inset 0 0 0 2px var(--cyan),0 0 22px rgba(34,230,255,.24)}
+
+/* ---- streak banner ---- */
+#streak{display:flex;align-items:center;gap:9px;padding:9px 15px;border-radius:14px;
+  background:linear-gradient(110deg,rgba(255,176,32,.2),rgba(255,46,147,.14));
+  box-shadow:inset 0 0 0 1.4px rgba(255,176,32,.36);font-size:12px;font-weight:900;letter-spacing:.06em}
+#streak .f{font-size:19px}
+
+/* ---- coach text ---- */
+#coach{position:absolute;left:0;right:0;bottom:4%;text-align:center;z-index:12;pointer-events:none;
+  font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);
+  opacity:0;transition:opacity .5s var(--ease)}
+#coach.on{opacity:1;animation:floaty 2s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.fadeUp{animation:fadeUp .5s var(--ease) both}
+.d1{animation-delay:.06s}.d2{animation-delay:.12s}.d3{animation-delay:.18s}.d4{animation-delay:.24s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.spacer{height:6px}
+#flash{position:absolute;inset:0;z-index:30;pointer-events:none;background:#fff;opacity:0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game"></canvas>
+  <div id="flash"></div>
+
+  <!-- ============ IN-GAME HUD ============ -->
+  <div id="hud">
+    <div id="hudTop">
+      <button class="icobtn" id="btnPause" aria-label="Pause">&#10074;&#10074;</button>
+      <div id="scoreWrap">
+        <div id="score" class="num">0</div>
+        <div id="combo"></div>
+      </div>
+      <div id="rightCol">
+        <div class="chip" id="coinChip"><span class="dot"></span><span id="coinTxt" class="num">0</span></div>
+        <div id="timer" class="num" style="display:none">60</div>
+        <div id="lives"></div>
+      </div>
+    </div>
+    <div id="objective"></div>
+  </div>
+  <div id="coach">pull back &amp; release to shoot</div>
+
+  <!-- ============ TITLE ============ -->
+  <section class="screen on" id="scTitle">
+    <div class="fadeUp">
+      <div class="logo">RIM<br>CITY</div>
+    </div>
+    <div class="tag fadeUp d1">Own every angle.</div>
+    <div class="spacer"></div>
+    <div id="streakWrap" class="fadeUp d2"></div>
+    <div class="row fadeUp d2"><button class="btn" id="btnPlay">Play</button></div>
+    <div class="row fadeUp d3">
+      <button class="btn ghost sm" id="btnShop">&#9733; Shop</button>
+      <button class="btn ghost sm" id="btnScores">&#127942; Scores</button>
+      <button class="btn ghost sm" id="btnAch">&#128081; Awards</button>
+    </div>
+    <div class="row fadeUp d4" style="margin-top:4px">
+      <input class="nameIn" id="nameInput" maxlength="8" value="HEN" aria-label="Player name">
+      <button class="icobtn" id="btnMute" aria-label="Mute">&#128266;</button>
+    </div>
+    <div class="sub fadeUp d4" style="margin-top:2px">tap the name to change it</div>
+  </section>
+
+  <!-- ============ MODE SELECT ============ -->
+  <section class="screen" id="scModes">
+    <div class="h2">Pick a mode</div>
+    <div class="spacer"></div>
+    <button class="mode c1" data-mode="endless">
+      <span class="mi">&#9889;</span>
+      <span><b>Endless</b><span>One miss and the run is over</span></span>
+      <span class="best" id="bestEndless"></span>
+    </button>
+    <button class="mode c2" data-mode="time">
+      <span class="mi">&#9201;</span>
+      <span><b>Time Attack</b><span>60 seconds. Score everything.</span></span>
+      <span class="best" id="bestTime"></span>
+    </button>
+    <button class="mode c3" data-mode="trick">
+      <span class="mi">&#127919;</span>
+      <span><b>Trick Shot</b><span>15 handcrafted bank &amp; bounce puzzles</span></span>
+      <span class="best" id="bestTrick"></span>
+    </button>
+    <div class="spacer"></div>
+    <button class="btn ghost sm" data-back="scTitle">Back</button>
+  </section>
+
+  <!-- ============ TRICK SHOT LEVEL SELECT ============ -->
+  <section class="screen scroll" id="scLevels">
+    <div class="spacer"></div>
+    <div class="h2">Trick Shot</div>
+    <div class="sub">Three attempts per level. Clear one to open the next.</div>
+    <div class="spacer"></div>
+    <div class="lvGrid" id="lvGrid"></div>
+    <div class="spacer"></div>
+    <button class="btn ghost sm" data-back="scModes">Back</button>
+  </section>
+
+  <!-- ============ SHOP ============ -->
+  <section class="screen scroll" id="scShop">
+    <div class="spacer"></div>
+    <div class="row" style="width:100%;justify-content:space-between;max-width:340px">
+      <div class="h2">Shop</div>
+      <div class="chip"><span class="dot"></span><span id="shopCoins" class="num">0</span></div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-tab="balls">Balls</button>
+      <button class="tab" data-tab="courts">Courts</button>
+    </div>
+    <div class="grid" id="shopGrid"></div>
+    <div class="spacer"></div>
+    <button class="btn ghost sm" data-back="scTitle">Back</button>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- ============ HIGH SCORES ============ -->
+  <section class="screen scroll" id="scScores">
+    <div class="spacer"></div>
+    <div class="h2">&#127942; Hall of Rim</div>
+    <div class="sub">Local board. Ten best runs on this device.</div>
+    <div class="spacer"></div>
+    <div class="list" id="scoreList"></div>
+    <div class="spacer"></div>
+    <div class="row">
+      <button class="btn ghost sm" data-back="scTitle">Back</button>
+      <button class="btn ghost sm" id="btnWipe">Clear board</button>
+    </div>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- ============ ACHIEVEMENTS ============ -->
+  <section class="screen scroll" id="scAch">
+    <div class="spacer"></div>
+    <div class="h2">&#128081; Awards</div>
+    <div class="sub" id="achCount"></div>
+    <div class="spacer"></div>
+    <div class="list" id="achList"></div>
+    <div class="spacer"></div>
+    <button class="btn ghost sm" data-back="scTitle">Back</button>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- ============ PAUSE ============ -->
+  <section class="screen" id="scPause">
+    <div class="h2">Paused</div>
+    <div class="spacer"></div>
+    <button class="btn" id="btnResume">Resume</button>
+    <button class="btn ghost sm" id="btnRestart">Restart</button>
+    <button class="btn ghost sm" id="btnQuit">Quit to menu</button>
+    <div class="spacer"></div>
+    <button class="icobtn" id="btnMute2" aria-label="Mute">&#128266;</button>
+  </section>
+
+  <!-- ============ GAME OVER ============ -->
+  <section class="screen" id="scOver">
+    <canvas id="goCanvas" width="300" height="300"></canvas>
+    <div id="overTitle" class="tag" style="letter-spacing:.3em">Run over</div>
+    <div class="bigscore num" id="overScore">0</div>
+    <div id="overBest"></div>
+    <div class="statRow">
+      <div class="stat"><b class="num" id="stBaskets">0</b><span>Baskets</span></div>
+      <div class="stat"><b class="num" id="stSwish">0</b><span>Swishes</span></div>
+      <div class="stat"><b class="num" id="stCombo">0</b><span>Best combo</span></div>
+      <div class="stat"><b class="num" id="stCoins">0</b><span>Coins</span></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" id="btnAgain">Run it back</button>
+    <div class="row">
+      <button class="btn ghost sm" id="btnShare">&#128203; Share score</button>
+      <button class="btn ghost sm" id="btnMenu">Menu</button>
+    </div>
+  </section>
+
+  <div id="toasts"></div>
+</div>
+
+<script>
+"use strict";
+/* ==================================================================
+   RIM CITY
+   A one-thumb arcade basketball game. Original code + original art.
+   ------------------------------------------------------------------
+   EVERYTHING YOU MIGHT WANT TO BALANCE LIVES IN `CONFIG` BELOW.
+   Nothing else in the file hard-codes a tuning number that matters.
+   ================================================================== */
+
+const CONFIG = {
+
+  /* ---------- WORLD -------------------------------------------------
+     All gameplay math happens in this fixed "logical" 450x800 space
+     (9:16). The canvas is scaled to the device, so tuning here is
+     resolution independent.                                          */
+  WORLD: {
+    W: 450,
+    H: 800,
+    FLOOR_Y: 726,          // y of the court surface
+    WALL_BOUNCE: 0.5       // energy kept when the ball clips a side wall
+  },
+
+  /* ---------- PHYSICS ---------------------------------------------- */
+  PHYSICS: {
+    GRAVITY: 1650,         // px/s^2 downward. Lower = floatier moon-ball.
+    AIR_DRAG: 0.16,        // fraction of velocity bled off per second
+    MAGNUS: 34,            // how much backspin curves the flight
+    SPIN_PER_PX: 0.020,    // drag distance -> backspin
+    SPIN_DECAY: 0.85,      // spin bleed per second
+    BALL_RADIUS: 15,
+    REST_RIM: 0.58,        // bounciness off the rim nubs
+    REST_BOARD: 0.66,      // bounciness off the backboard
+    REST_FLOOR: 0.64,
+    REST_OBSTACLE: 0.72,
+    FLOOR_FRICTION: 0.84,  // horizontal speed kept per floor bounce
+    SHOT_TIMEOUT: 5.5,     // seconds before a live ball is called a miss
+    SLEEP_SPEED: 90        // below this speed on the floor, the ball dies
+  },
+
+  /* ---------- AIMING / SHOOTING ------------------------------------
+     Pull back from the ball; release to fire in the opposite direction.  */
+  AIM: {
+    POWER_PER_PX: 10.0,    // drag pixels -> launch speed
+    MAX_DRAG: 185,         // drag beyond this adds no power
+    MIN_DRAG: 14,          // below this the tap is ignored (no fat-finger misfires)
+    MAX_SPEED: 1900,       // hard ceiling on launch speed
+    GRAB_RADIUS: 999,      // tap anywhere to start aiming (999 = whole screen)
+    DOT_COUNT: 20,         // trajectory preview dots
+    DOT_TIME_STEP: 0.045,  // seconds of simulation between dots
+    DOT_MIN_R: 1.8,
+    DOT_MAX_R: 5.0,
+    AIM_SLOWDOWN: 0.28     // world timescale while you are aiming (obstacles crawl)
+  },
+
+  /* ---------- HOOP --------------------------------------------------
+     Rim is two nubs; the ball must fall between them.                 */
+  HOOP: {
+    RIM_HALF: 29,          // half-width of the rim opening
+    NUB_R: 5,              // radius of each rim nub collider
+    BOARD_W: 9,
+    BOARD_H: 104,
+    BOARD_GAP: 7,          // gap between right rim nub and the backboard
+    BOARD_RISE: 84,        // how far the board sticks up above the rim
+    NET_LEN: 52,
+    NET_COLS: 6,
+    NET_ROWS: 6,
+    NET_SPRING: 150,       // net stiffness (higher = snappier cloth)
+    NET_DAMP: 7.0,
+    FLEX_SPRING: 210,      // rim flex spring on contact
+    FLEX_DAMP: 11,
+    MOVE_EASE: 3.4         // how fast the hoop glides to a new spot
+  },
+
+  /* ---------- BALL START (the shooting spot) ----------------------- */
+  START: { x: 86, y: 596 },
+
+  /* ---------- DIFFICULTY RAMP --------------------------------------
+     A new "tier" every STEP baskets. Each tier layers one more thing
+     on top of the last, exactly in this order.                        */
+  DIFFICULTY: {
+    STEP: 5,               // baskets between tiers
+    MAX_TIER: 9,
+    DIST_MIN: 250,         // nearest the hoop ever spawns (x)
+    DIST_MAX: 404,         // furthest
+    DIST_BAND: 62,         // width of the spawn band at tier 0 (it widens as you climb)
+    DIST_PER_TIER: 26,     // how much the near edge is pushed out per tier
+    HEIGHT_EASY: 386,      // highest the rim goes at tier 0
+    HEIGHT_MIN: 286,       // highest rim (y) once the ramp is fully wound up
+    HEIGHT_MAX: 452,       // lowest rim
+    SLIDE_TIER: 2,         // tier that turns on left-right sliding
+    SLIDE_SPEED: 42,       // px/s at the tier it unlocks
+    SLIDE_SPEED_PER_TIER: 13,
+    SLIDE_RANGE: 56,
+    BOB_TIER: 3,           // tier that adds vertical bobbing
+    BOB_SPEED: 1.35,
+    BOB_RANGE: 26,
+    BOB_RANGE_PER_TIER: 6,
+    WIND_TIER: 4,          // tier that adds wind
+    WIND_MIN: 55,          // px/s^2 sideways acceleration
+    WIND_PER_TIER: 26,
+    WIND_MAX: 235,
+    OBSTACLE_TIER: 5,      // tier that adds moving obstacles
+    SPIN_SPEED: 1.5,       // spinning bar angular speed (rad/s)
+    SPIN_SPEED_PER_TIER: 0.22,
+    HAND_SPEED: 92,        // defender hand travel speed
+    HAND_SPEED_PER_TIER: 16
+  },
+
+  /* ---------- SCORING ---------------------------------------------- */
+  SCORING: {
+    BASKET: 50,
+    SWISH_BONUS: 30,       // added on top when nothing was touched
+    BANK_BONUS: 25,        // added when it kissed the backboard first
+    LONG_MIN_DIST: 300,    // distance from launch spot that counts as "long"
+    LONG_BONUS: 40,
+    FLOOR_BOUNCE_BONUS: 35,// scored after bouncing off the court
+    OBSTACLE_BONUS: 20,    // scored on a run with obstacles live
+    COMBO_STEPS: [1, 2, 3],// multiplier ladder before FIRE
+    FIRE_MULT: 4,          // multiplier once FIRE mode is lit
+    FIRE_AT: 3             // consecutive swishes needed to catch fire
+  },
+
+  /* ---------- COINS -------------------------------------------------
+     Coins are the shop currency and are kept across runs.             */
+  COINS: {
+    PER_BASKET: 3,
+    PER_SWISH: 4,
+    PER_LONG: 5,
+    PER_FIRE_BASKET: 6,
+    LEVEL_CLEAR: 40,       // trick-shot level reward
+    STREAK_BASE: 25,       // daily streak: base + per-day, capped
+    STREAK_PER_DAY: 15,
+    STREAK_CAP: 150
+  },
+
+  /* ---------- MODES ------------------------------------------------- */
+  MODES: {
+    endless:  { lives: 1,  time: 0  },   // one miss and you are done
+    time:     { lives: 0,  time: 60 },   // 60 seconds, misses just cost tempo
+    trick:    { lives: 3,  time: 0  }    // three attempts per handcrafted level
+  },
+
+  /* ---------- JUICE -------------------------------------------------
+     The feel knobs. Turn SHAKE to 0 for a very boring game.           */
+  JUICE: {
+    SHAKE_BASKET: 6,
+    SHAKE_SWISH: 11,
+    SHAKE_FIRE: 17,
+    SHAKE_MISS: 4,
+    SHAKE_DECAY: 5.4,
+    SLOWMO_SCALE: 0.26,    // timescale during a clutch shot
+    SLOWMO_TIME: 0.30,     // real seconds of slow motion (your spec: last 0.3s)
+    SLOWMO_TRIGGER_DIST: 150, // ball-to-rim distance that arms the slowdown
+    TRAIL_LEN: 18,
+    TRAIL_FADE: 0.9,
+    PARTICLE_CAP: 260,     // hard cap keeps the frame budget safe
+    CONFETTI: 46,
+    SWISH_BURST: 26,
+    SPARKS: 12,
+    FLASH_ALPHA: 0.32,
+    HAPTIC_BASKET: 18,     // navigator.vibrate durations (ms)
+    HAPTIC_SWISH: [12, 28, 14],
+    HAPTIC_MISS: 40,
+    SCORE_POP_RISE: 62,
+    SCORE_POP_TIME: 1.05
+  },
+
+  /* ---------- AUDIO (all synthesized, zero asset files) ------------- */
+  AUDIO: { MASTER: 0.5, SFX: 0.85, CROWD: 0.55 },
+
+  /* ---------- PLAYER / PERSONALIZATION ------------------------------ */
+  PLAYER: {
+    NAME: "HEN",
+    JERSEY: "#8b5cf6",
+    JERSEY_DARK: "#6d3ee0",
+    NUMBER: "7",
+    SKIN: "#e8b48a",
+    SHOE: "#22e6ff"
+  },
+
+  GAME_NAME: "RIM CITY",
+  TAGLINE: "Own every angle.",
+  SAVE_KEY: "rimcity.save.v1"
+};
+
+/* ==================================================================
+   1. SMALL UTILITIES
+   ================================================================== */
+const W = CONFIG.WORLD.W, H = CONFIG.WORLD.H;
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a, b) => a + Math.random() * (b - a);
+const randInt = (a, b) => Math.floor(rand(a, b + 1));
+const pick = arr => arr[(Math.random() * arr.length) | 0];
+const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
+const sign = v => v < 0 ? -1 : 1;
+// easing
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+const easeOutBack = t => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
+const easeInOut = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("en-US");
+
+/* ==================================================================
+   2. SAVE DATA  (localStorage, one JSON blob)
+   ================================================================== */
+const DEFAULT_SAVE = {
+  name: CONFIG.PLAYER.NAME,
+  coins: 0,
+  muted: false,
+  best: { endless: 0, time: 0, trick: 0 },
+  scores: [],                 // [{name,score,mode,date}]
+  ball: "classic",
+  court: "street",
+  ownedBalls: ["classic"],
+  ownedCourts: ["street"],
+  ach: [],                    // unlocked achievement ids
+  levels: [],                 // cleared trick-shot level indexes
+  streak: { days: 0, last: "" },
+  stats: {
+    plays: 0, baskets: 0, swishes: 0, shots: 0, longShots: 0,
+    bankShots: 0, fireRuns: 0, bestCombo: 0, coinsEarned: 0, obstacleBaskets: 0
+  }
+};
+
+let SAVE = loadSave();
+
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(CONFIG.SAVE_KEY);
+    if (!raw) return structuredClone(DEFAULT_SAVE);
+    const parsed = JSON.parse(raw);
+    // shallow-merge so a save from an older build never breaks a new one
+    const s = structuredClone(DEFAULT_SAVE);
+    for (const k in parsed) {
+      if (k === "stats" || k === "best" || k === "streak") Object.assign(s[k], parsed[k]);
+      else s[k] = parsed[k];
+    }
+    return s;
+  } catch (e) { return structuredClone(DEFAULT_SAVE); }
+}
+let saveTimer = 0;
+function save() {                       // debounced: never thrash storage mid-frame
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {}
+  }, 220);
+}
+function saveNow() {
+  clearTimeout(saveTimer);
+  try { localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {}
+}
+
+/* ==================================================================
+   3. AUDIO ENGINE
+   Every sound is synthesized at runtime with WebAudio - no files,
+   which keeps this a genuinely single-file game.
+   ================================================================== */
+const Sound = (() => {
+  let ctx = null, master = null, noiseBuf = null, ready = false;
+
+  function init() {
+    if (ready) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ctx = new AC();
+    master = ctx.createGain();
+    master.gain.value = SAVE.muted ? 0 : CONFIG.AUDIO.MASTER;
+    master.connect(ctx.destination);
+    // one second of white noise, reused by every noise-based sound
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    ready = true;
+  }
+  function resume() { if (ctx && ctx.state === "suspended") ctx.resume(); }
+  const now = () => ctx.currentTime;
+
+  function tone(freq, dur, type, vol, slideTo, delay) {
+    if (!ready) return;
+    const t = now() + (delay || 0);
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || "sine";
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime((vol || .3) * CONFIG.AUDIO.SFX, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(master);
+    o.start(t); o.stop(t + dur + .05);
+  }
+  function noise(dur, vol, filterType, f0, f1, q, delay) {
+    if (!ready) return;
+    const t = now() + (delay || 0);
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    const flt = ctx.createBiquadFilter();
+    flt.type = filterType || "bandpass";
+    flt.frequency.setValueAtTime(f0, t);
+    if (f1) flt.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
+    flt.Q.value = q || 1;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime((vol || .3) * CONFIG.AUDIO.SFX, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(flt).connect(g).connect(master);
+    src.start(t); src.stop(t + dur + .05);
+  }
+
+  return {
+    init, resume,
+    setMuted(m) { if (master) master.gain.value = m ? 0 : CONFIG.AUDIO.MASTER; },
+    /* cloth rush through the net */
+    swish() { noise(.34, .38, "bandpass", 5200, 900, 1.3); tone(880, .12, "sine", .1, 1320); },
+    /* iron on iron */
+    clank() { tone(1180, .22, "square", .16, 470); tone(1760, .13, "triangle", .1, 900); noise(.09, .16, "highpass", 2600, 1800, .8); },
+    /* dull plexiglass thud */
+    board() { tone(240, .17, "triangle", .2, 150); noise(.08, .12, "lowpass", 900, 400, .7); },
+    /* ball on concrete */
+    bounce(v) { const p = clamp(v / 700, .25, 1); tone(150 + 90 * p, .1, "sine", .17 * p, 70); noise(.05, .08 * p, "lowpass", 700, 300, .6); },
+    /* leather leaving your hand */
+    whoosh(p) { noise(.2, .16 + .1 * p, "bandpass", 500 + 900 * p, 2400, .9); },
+    coin() { tone(1320, .09, "square", .14, 1760); tone(1980, .1, "square", .1, 2640, .05); },
+    cheer() {
+      noise(.95, CONFIG.AUDIO.CROWD * .34, "bandpass", 700, 1900, .55);
+      noise(.75, CONFIG.AUDIO.CROWD * .2, "highpass", 2400, 3600, .5, .08);
+      for (let i = 0; i < 6; i++) tone(rand(500, 1200), .3, "triangle", .035, rand(700, 1500), i * .05);
+    },
+    fire() { tone(180, .5, "sawtooth", .2, 720); noise(.55, .22, "bandpass", 400, 2800, .8); tone(660, .35, "square", .1, 1320, .06); },
+    levelUp() {[0, .09, .18, .3].forEach((d, i) => tone([660, 880, 1100, 1480][i], .26, "triangle", .2, null, d)); },
+    fail() { tone(300, .4, "sawtooth", .17, 90); noise(.3, .1, "lowpass", 700, 200, .7); },
+    click() { tone(760, .05, "square", .1, 520); },
+    buy() { tone(880, .1, "triangle", .18, 1320); tone(1320, .14, "triangle", .14, 1760, .07); }
+  };
+})();
+function haptic(pattern) {
+  if (SAVE.muted) return;                       // mute toggle silences buzz too
+  if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) {} }
+}
+
+/* ==================================================================
+   4. CONTENT: balls, courts, achievements, handcrafted trick levels
+   ================================================================== */
+
+/* Each ball is a small physics modifier plus a paint job.
+   grav/bounce/drag/size are MULTIPLIERS on the CONFIG.PHYSICS values. */
+const BALLS = [
+  { id:"classic", name:"Classic",  price:0,    grav:1.00, bounce:1.00, drag:1.00, size:1.00,
+    blurb:"Standard issue. No tricks.",              c1:"#ff8c2b", c2:"#c44f00", line:"#3a1400", trail:"#ff9a3c", style:"lines" },
+  { id:"marble",  name:"Marble",   price:180,  grav:1.14, bounce:0.82, drag:0.88, size:0.96,
+    blurb:"Heavy. Flies flatter, dies on the rim.",  c1:"#e9edf7", c2:"#9aa3bd", line:"#5b6480", trail:"#cfd8ff", style:"veins" },
+  { id:"neon",    name:"Neon",     price:260,  grav:0.92, bounce:1.10, drag:0.80, size:1.00,
+    blurb:"Light and floaty. Long-range friendly.",  c1:"#22e6ff", c2:"#0b7fa0", line:"#eafcff", trail:"#22e6ff", style:"glow" },
+  { id:"planet",  name:"Planet",   price:420,  grav:1.06, bounce:0.94, drag:0.72, size:1.06,
+    blurb:"Big target, cuts the air, hates rims.",   c1:"#ffb020", c2:"#b2560d", line:"#ffe9b8", trail:"#ffc85a", style:"ring" },
+  { id:"beach",   name:"Beach",    price:340,  grav:0.78, bounce:1.26, drag:1.35, size:1.10,
+    blurb:"Floaty and bouncy. Chaos on purpose.",    c1:"#ff2e93", c2:"#ffe14d", line:"#ffffff", trail:"#ff7fd0", style:"panels" },
+  { id:"flaming", name:"Flaming",  price:650,  grav:1.00, bounce:1.02, drag:0.86, size:1.00,
+    blurb:"Always lit. Burns a trail through town.", c1:"#ff5a1f", c2:"#8b1500", line:"#ffd166", trail:"#ff7a18", style:"ember" }
+];
+
+/* Court skins are pure palette swaps for the backdrop renderer. */
+const COURTS = [
+  { id:"street",  name:"Street",   price:0,
+    sky:["#0a0a16","#141430"], glow:"#22e6ff", floor:"#16162c", line:"#2a2a52",
+    accent:"#ff2e93", back:"fence",  blurb:"Chain-link and a busted lamp." },
+  { id:"arena",   name:"Arena",    price:300,
+    sky:["#07121c","#0d2438"], glow:"#3ad1ff", floor:"#123049", line:"#1d4d70",
+    accent:"#ffb020", back:"crowd",  blurb:"Full house. They can hear you." },
+  { id:"rooftop", name:"Rooftop",  price:480,
+    sky:["#2a0f3d","#ff5e62"], glow:"#ffb020", floor:"#241030", line:"#4a1f5e",
+    accent:"#ffe14d", back:"skyline",blurb:"Sunset over the block." },
+  { id:"arcade",  name:"Arcade",   price:620,
+    sky:["#05030f","#1a0430"], glow:"#b6ff3a", floor:"#0d0620", line:"#2d0a52",
+    accent:"#ff2e93", back:"grid",   blurb:"Retro cabinet, endless quarters." }
+];
+
+/* 12 achievements. `test` runs against a snapshot of the current run. */
+const ACHIEVEMENTS = [
+  { id:"first",   ic:"🏀", name:"First Blood",     desc:"Sink your first basket",              test:(r,s)=>s.stats.baskets>=1 },
+  { id:"swish5",  ic:"✨",       name:"Clean Hands",     desc:"Five swishes in a single run",        test:(r)=>r.swishes>=5 },
+  { id:"fire",    ic:"🔥", name:"Catch Fire",      desc:"Light up FIRE mode",                  test:(r)=>r.everFire },
+  { id:"downtown",ic:"🌆", name:"Downtown",        desc:"Score from way out",                  test:(r)=>r.longShots>=1 },
+  { id:"banker",  ic:"🪟", name:"The Banker",      desc:"25 bank shots, all time",             test:(r,s)=>s.stats.bankShots>=25 },
+  { id:"century", ic:"💯", name:"Four Figures",    desc:"1,000 points in one run",             test:(r)=>r.score>=1000 },
+  { id:"marathon",ic:"🏃", name:"Iron Legs",       desc:"25 baskets in one Endless run",       test:(r)=>r.mode==="endless"&&r.baskets>=25 },
+  { id:"clock",   ic:"⏱",       name:"Beat the Buzzer", desc:"15 baskets in one Time Attack",       test:(r)=>r.mode==="time"&&r.baskets>=15 },
+  { id:"trick5",  ic:"🎯", name:"Trickster",       desc:"Clear 5 trick-shot levels",           test:(r,s)=>s.levels.length>=5 },
+  { id:"trick15", ic:"👑", name:"Rim City King",   desc:"Clear all 15 trick-shot levels",      test:(r,s)=>s.levels.length>=15 },
+  { id:"collect", ic:"🛍", name:"Collector",       desc:"Own four different balls",            test:(r,s)=>s.ownedBalls.length>=4 },
+  { id:"loyal",   ic:"📅", name:"Regular",         desc:"Play five days in a row",             test:(r,s)=>s.streak.days>=5 }
+];
+
+/* ------------------------------------------------------------------
+   15 handcrafted trick-shot levels.
+   need : "bank"  -> must kiss the backboard before dropping in
+          "floor" -> must bounce off the court first
+          "swish" -> must touch nothing at all
+          null    -> just make it
+   walls    : static neon blocks that the ball bounces off
+   obstacles: {type:"spinner"|"hand", ...} moving hazards
+   ------------------------------------------------------------------ */
+const LEVELS = [
+  { n:"Warm Up",      need:null,   hint:"Just make it",              hoop:{x:330,y:400}, start:{x:86,y:596}, walls:[], obs:[] },
+  { n:"Off the Glass",need:"bank", hint:"Bank it off the board",     hoop:{x:335,y:380}, start:{x:86,y:596}, walls:[], obs:[] },
+  { n:"Low Ceiling",  need:null,   hint:"Stay under the beam",       hoop:{x:340,y:470}, start:{x:86,y:596},
+    walls:[{x:140,y:300,w:260,h:16}], obs:[] },
+  { n:"Bounce Pass",  need:"floor",hint:"Off the floor first",       hoop:{x:300,y:590}, start:{x:86,y:596}, walls:[], obs:[] },
+  { n:"Threading",    need:null,   hint:"Through the gap",           hoop:{x:352,y:420}, start:{x:86,y:596},
+    walls:[{x:210,y:250,w:18,h:190},{x:210,y:530,w:18,h:200}], obs:[] },
+  { n:"Nothing But",  need:"swish",hint:"Swish only - touch nothing",hoop:{x:300,y:360}, start:{x:86,y:596}, walls:[], obs:[] },
+  { n:"Revolver",     need:null,   hint:"Time the spinner",          hoop:{x:345,y:400}, start:{x:86,y:596},
+    walls:[], obs:[{type:"spinner",x:230,y:430,len:78,speed:1.6,phase:0}] },
+  { n:"Double Glass", need:"bank", hint:"Bank it in traffic",        hoop:{x:352,y:330}, start:{x:86,y:596},
+    walls:[{x:180,y:430,w:130,h:16}], obs:[] },
+  { n:"The Wall",     need:null,   hint:"Go over the top",           hoop:{x:360,y:500}, start:{x:86,y:596},
+    walls:[{x:250,y:360,w:18,h:300}], obs:[] },
+  { n:"Handcheck",    need:null,   hint:"Beat the hand",             hoop:{x:335,y:380}, start:{x:86,y:596},
+    walls:[], obs:[{type:"hand",x:240,y:400,axis:"y",range:120,speed:150,phase:0}] },
+  { n:"Pinball",      need:"floor",hint:"Floor, then glass",         hoop:{x:355,y:600}, start:{x:86,y:596},
+    walls:[{x:170,y:470,w:16,h:140}], obs:[] },
+  { n:"Crossfire",    need:null,   hint:"Two spinners, one window",  hoop:{x:355,y:420}, start:{x:86,y:596},
+    walls:[], obs:[{type:"spinner",x:200,y:360,len:66,speed:1.9,phase:0},
+                   {type:"spinner",x:280,y:520,len:66,speed:-1.7,phase:1.2}] },
+  { n:"Needle",       need:"swish",hint:"Swish through the slot",    hoop:{x:340,y:440}, start:{x:86,y:596},
+    walls:[{x:225,y:230,w:18,h:160},{x:225,y:500,w:18,h:230}], obs:[] },
+  { n:"Full Court",   need:null,   hint:"All the way across",        hoop:{x:400,y:290}, start:{x:86,y:596},
+    walls:[{x:200,y:180,w:190,h:16}], obs:[{type:"hand",x:300,y:520,axis:"x",range:90,speed:180,phase:0}] },
+  { n:"Coronation",   need:"bank", hint:"Bank it. Everything moves.",hoop:{x:372,y:350}, start:{x:86,y:596},
+    walls:[{x:190,y:250,w:16,h:130}], obs:[{type:"spinner",x:270,y:450,len:84,speed:2.1,phase:.5},
+                                           {type:"hand",x:330,y:560,axis:"x",range:80,speed:190,phase:.8}] }
+];
+
+/* ==================================================================
+   5. CANVAS + VIEWPORT
+   Fixed 450x800 logical space, scaled by devicePixelRatio, capped at
+   2x so a 3x phone does not burn a third of the frame on fill rate.
+   ================================================================== */
+const cv = $("game"), ctx = cv.getContext("2d", { alpha: false });
+let SCALE = 1, DPR = 1;
+function resize() {
+  const r = cv.getBoundingClientRect();
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(r.width * DPR);
+  cv.height = Math.round(r.height * DPR);
+  SCALE = cv.width / W;                 // logical -> device
+  bgDirty = true;
+}
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 120));
+
+/* ==================================================================
+   6. FX: screen shake, particles, floating text, flash
+   ================================================================== */
+const Shake = {
+  amt: 0, x: 0, y: 0,
+  add(v) { this.amt = Math.min(this.amt + v, 30); },
+  update(dt) {
+    this.amt = Math.max(0, this.amt - CONFIG.JUICE.SHAKE_DECAY * this.amt * dt - 6 * dt);
+    const a = this.amt;
+    this.x = rand(-a, a); this.y = rand(-a, a);
+  }
+};
+
+/* One flat array, reused. Dead particles are swapped to the end so we
+   never allocate during a run - that is what keeps the GC quiet. */
+const P = [];
+function spawnP(o) {
+  if (P.length >= CONFIG.JUICE.PARTICLE_CAP) P.shift();
+  P.push({
+    x:o.x, y:o.y, vx:o.vx||0, vy:o.vy||0, r:o.r||3, life:o.life||.6, t:0,
+    c:o.c||"#fff", g:o.g===undefined?600:o.g, shape:o.shape||"dot",
+    rot:o.rot||0, vr:o.vr||0, fade:o.fade===undefined?1:o.fade, drag:o.drag||0
+  });
+}
+function burst(x, y, n, opt) {
+  for (let i = 0; i < n; i++) {
+    const a = opt.dir === undefined ? rand(0, TAU) : opt.dir + rand(-opt.spread, opt.spread);
+    const sp = rand(opt.spMin || 80, opt.spMax || 300);
+    spawnP({ x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+      r:rand(opt.rMin||2, opt.rMax||5), life:rand(opt.lifeMin||.35, opt.lifeMax||.8),
+      c:Array.isArray(opt.c)?pick(opt.c):opt.c, g:opt.g, shape:opt.shape, vr:rand(-9,9), drag:opt.drag });
+  }
+}
+function confetti(x, y) {
+  const cols = ["#22e6ff","#ff2e93","#ffb020","#b6ff3a","#ffffff"];
+  for (let i = 0; i < CONFIG.JUICE.CONFETTI; i++) {
+    spawnP({ x:x+rand(-26,26), y:y+rand(-14,14),
+      vx:rand(-230,230), vy:rand(-420,-90), r:rand(2.5,5.5),
+      life:rand(.9,1.7), c:pick(cols), g:760, shape:"rect", vr:rand(-14,14), drag:.8 });
+  }
+}
+function updateP(dt) {
+  for (let i = P.length - 1; i >= 0; i--) {
+    const p = P[i];
+    p.t += dt;
+    if (p.t >= p.life) { P.splice(i, 1); continue; }
+    p.vy += p.g * dt;
+    if (p.drag) { const k = 1 - p.drag * dt; p.vx *= k; p.vy *= k; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+  }
+}
+function drawP() {
+  for (let i = 0; i < P.length; i++) {
+    const p = P[i], k = 1 - p.t / p.life;
+    ctx.globalAlpha = p.fade ? k : 1;
+    ctx.fillStyle = p.c;
+    if (p.shape === "rect") {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillRect(-p.r, -p.r * .55, p.r * 2, p.r * 1.1); ctx.restore();
+    } else if (p.shape === "spark") {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(p.vy, p.vx));
+      ctx.fillRect(0, -p.r * .32, p.r * 3.2 * k, p.r * .64); ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * k, 0, TAU); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* floating "+50 SWISH!" score pops */
+const POPS = [];
+function pop(x, y, text, color, big) {
+  POPS.push({ x, y, text, c:color || "#fff", t:0, life:CONFIG.JUICE.SCORE_POP_TIME, big:!!big });
+}
+function updatePops(dt) {
+  for (let i = POPS.length - 1; i >= 0; i--) {
+    POPS[i].t += dt;
+    if (POPS[i].t >= POPS[i].life) POPS.splice(i, 1);
+  }
+}
+function drawPops() {
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of POPS) {
+    const k = p.t / p.life;
+    const y = p.y - CONFIG.JUICE.SCORE_POP_RISE * easeOutCubic(k);
+    const s = p.big ? 1.25 : 1;
+    const scale = (k < .16 ? easeOutBack(k / .16) : 1) * s;
+    ctx.save();
+    ctx.globalAlpha = k > .65 ? 1 - (k - .65) / .35 : 1;
+    ctx.translate(p.x, y); ctx.scale(scale, scale);
+    ctx.font = "900 " + (p.big ? 27 : 21) + "px " + FONT;
+    ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,.55)";
+    ctx.strokeText(p.text, 0, 0);
+    ctx.fillStyle = p.c; ctx.fillText(p.text, 0, 0);
+    ctx.restore();
+  }
+}
+const FONT = '"Arial Rounded MT Bold","Nunito",ui-rounded,system-ui,sans-serif';
+
+/* white flash on big moments */
+const flashEl = $("flash");
+let flashT = 0;
+function flash(a) { flashT = a === undefined ? CONFIG.JUICE.FLASH_ALPHA : a; }
+function updateFlash(dt) {
+  if (flashT > 0) { flashT = Math.max(0, flashT - dt * 2.4); flashEl.style.opacity = flashT; }
+  else if (flashEl.style.opacity !== "0") flashEl.style.opacity = "0";
+}
+
+/* ==================================================================
+   7. GAME STATE
+   ================================================================== */
+const S = { MENU:"menu", AIM:"aim", FLIGHT:"flight", RESET:"reset", OVER:"over", PAUSED:"paused" };
+
+const G = {
+  state: S.MENU,
+  mode: "endless",
+  level: 0,            // trick-shot level index
+  score: 0, baskets: 0, swishes: 0, shots: 0, coinsRun: 0,
+  combo: 0,            // consecutive swishes
+  mult: 1,
+  fire: false, everFire: false, fireT: 0,
+  lives: 1, maxLives: 1,
+  timeLeft: 0,
+  tier: 0,
+  bestCombo: 0, longShots: 0, bankShots: 0, obstacleBaskets: 0,
+  wind: 0, windTarget: 0,
+  timeScale: 1, slowT: 0, slowUsed: false,
+  elapsed: 0,
+  newBest: false,
+  clutchArmed: false
+};
+
+const ball = {
+  x: CONFIG.START.x, y: CONFIG.START.y, vx: 0, vy: 0, spin: 0,
+  r: CONFIG.PHYSICS.BALL_RADIUS, live: false, t: 0, restT: 0,
+  touchRim: false, touchBoard: false, touchFloor: false, touchObs: false,
+  launchX: 0, launchY: 0, trail: [], rot: 0
+};
+
+const hoop = {
+  baseX: 330, baseY: 400, x: 330, y: 400,
+  tx: 330, ty: 400,                  // target (the hoop eases toward this)
+  slideAmp: 0, slideSpeed: 0, slidePhase: 0,
+  bobAmp: 0, bobSpeed: 0, bobPhase: 0,
+  flex: 0, flexV: 0,                 // rim flex spring (px of droop)
+  net: [],                           // per-column horizontal displacement springs
+  netV: []
+};
+for (let i = 0; i <= CONFIG.HOOP.NET_COLS; i++) { hoop.net.push({ x:0, y:0 }); hoop.netV.push({ x:0, y:0 }); }
+
+let obstacles = [];   // live hazards
+let walls = [];       // static blocks (trick-shot levels)
+let level = null;     // current trick-shot level definition
+
+const equippedBall = () => BALLS.find(b => b.id === SAVE.ball) || BALLS[0];
+const equippedCourt = () => COURTS.find(c => c.id === SAVE.court) || COURTS[0];
+
+/* ==================================================================
+   8. DIFFICULTY RAMP
+   Tier = floor(baskets / STEP). Each tier layers on the next thing:
+   further -> sliding -> bobbing -> wind -> obstacles.
+   ================================================================== */
+const D = CONFIG.DIFFICULTY;
+function tierOf(baskets) { return Math.min(D.MAX_TIER, Math.floor(baskets / D.STEP)); }
+
+function applyDifficulty() {
+  if (G.mode === "trick") return;             // handcrafted levels ignore the ramp
+  const t = G.tier = tierOf(G.baskets);
+
+  // 1. distance: the near edge of the spawn band walks away from you
+  const near = Math.min(D.DIST_MIN + t * D.DIST_PER_TIER, D.DIST_MAX - 40);
+  const far = Math.min(near + D.DIST_BAND + t * 8, D.DIST_MAX);
+  hoop.tx = rand(near, far);
+  // the rim also climbs: tier 0 hangs low and friendly, later tiers ride high
+  const hiEdge = lerp(D.HEIGHT_EASY, D.HEIGHT_MIN, Math.min(1, t / 4));
+  hoop.ty = rand(hiEdge, D.HEIGHT_MAX);
+
+  // 2. horizontal slide
+  hoop.slideAmp = t >= D.SLIDE_TIER ? D.SLIDE_RANGE : 0;
+  hoop.slideSpeed = t >= D.SLIDE_TIER ? (D.SLIDE_SPEED + (t - D.SLIDE_TIER) * D.SLIDE_SPEED_PER_TIER) / D.SLIDE_RANGE : 0;
+  hoop.slidePhase = rand(0, TAU);
+
+  // 3. vertical bob
+  hoop.bobAmp = t >= D.BOB_TIER ? D.BOB_RANGE + (t - D.BOB_TIER) * D.BOB_RANGE_PER_TIER : 0;
+  hoop.bobSpeed = D.BOB_SPEED;
+  hoop.bobPhase = rand(0, TAU);
+
+  // 4. wind
+  if (t >= D.WIND_TIER) {
+    const mag = Math.min(D.WIND_MIN + (t - D.WIND_TIER) * D.WIND_PER_TIER, D.WIND_MAX);
+    G.windTarget = mag * (Math.random() < .5 ? -1 : 1);
+  } else G.windTarget = 0;
+
+  // 5. moving obstacles between you and the rim
+  obstacles.length = 0;
+  if (t >= D.OBSTACLE_TIER) {
+    const extra = t - D.OBSTACLE_TIER;
+    const midX = lerp(CONFIG.START.x, hoop.tx, .55);
+    obstacles.push({
+      type: "spinner", x: clamp(midX, 150, 300), y: rand(340, 520),
+      len: 72 + Math.min(extra * 5, 22),
+      speed: (D.SPIN_SPEED + extra * D.SPIN_SPEED_PER_TIER) * (Math.random() < .5 ? -1 : 1),
+      a: rand(0, TAU)
+    });
+    if (extra >= 1) {
+      obstacles.push({
+        type: "hand", x: clamp(midX + 70, 170, 330), y: rand(320, 470), r: 19,
+        axis: Math.random() < .5 ? "y" : "x", range: 90,
+        speed: D.HAND_SPEED + extra * D.HAND_SPEED_PER_TIER, phase: rand(0, TAU), ox: 0, oy: 0
+      });
+    }
+  }
+  // clamp so the hoop never slides off the right edge
+  hoop.tx = clamp(hoop.tx, D.DIST_MIN, W - CONFIG.HOOP.RIM_HALF - CONFIG.HOOP.BOARD_GAP - CONFIG.HOOP.BOARD_W - 6 - hoop.slideAmp * .5);
+}
+
+/* ==================================================================
+   9. HOOP UPDATE (movement + rim flex + cloth net)
+   ================================================================== */
+function updateHoop(dt) {
+  const e = CONFIG.HOOP;
+  // glide the base toward the target
+  hoop.baseX = lerp(hoop.baseX, hoop.tx, 1 - Math.pow(.001, dt * (e.MOVE_EASE / 3.4)));
+  hoop.baseY = lerp(hoop.baseY, hoop.ty, 1 - Math.pow(.001, dt * (e.MOVE_EASE / 3.4)));
+
+  hoop.slidePhase += hoop.slideSpeed * dt;
+  hoop.bobPhase += hoop.bobSpeed * dt;
+  hoop.x = hoop.baseX + Math.sin(hoop.slidePhase) * hoop.slideAmp;
+  hoop.y = hoop.baseY + Math.sin(hoop.bobPhase) * hoop.bobAmp;
+
+  // rim flex: critically-ish damped spring back to rest
+  hoop.flexV += (-e.FLEX_SPRING * hoop.flex - e.FLEX_DAMP * hoop.flexV) * dt;
+  hoop.flex += hoop.flexV * dt;
+
+  // net columns: spring back, get pushed by a ball inside the cylinder
+  for (let i = 0; i < hoop.net.length; i++) {
+    const n = hoop.net[i], v = hoop.netV[i];
+    v.x += (-e.NET_SPRING * n.x - e.NET_DAMP * v.x * 2) * dt;
+    v.y += (-e.NET_SPRING * n.y - e.NET_DAMP * v.y * 2) * dt;
+    n.x += v.x * dt; n.y += v.y * dt;
+  }
+}
+/* push the net when the ball is inside it */
+function disturbNet(px, py, vx, vy) {
+  const e = CONFIG.HOOP, step = (e.RIM_HALF * 2) / e.NET_COLS;
+  for (let i = 0; i < hoop.net.length; i++) {
+    const cx = hoop.x - e.RIM_HALF + i * step;
+    const d = Math.abs(cx - px);
+    if (d < 46) {
+      const k = (1 - d / 46) * .05;
+      hoop.netV[i].x += vx * k;
+      hoop.netV[i].y += Math.abs(vy) * k * .8;
+    }
+  }
+}
+
+/* ==================================================================
+   10. OBSTACLES
+   ================================================================== */
+function updateObstacles(dt) {
+  for (const o of obstacles) {
+    if (o.type === "spinner") o.a += o.speed * dt;
+    else if (o.type === "hand") {
+      o.phase += (o.speed / Math.max(1, o.range)) * dt;
+      const off = Math.sin(o.phase) * o.range;
+      o.ox = o.axis === "x" ? off : 0;
+      o.oy = o.axis === "y" ? off : 0;
+    }
+  }
+}
+/* closest point on a segment, used by the spinning bar collider */
+function closestOnSeg(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const L = dx * dx + dy * dy;
+  let t = L === 0 ? 0 : ((px - ax) * dx + (py - ay) * dy) / L;
+  t = clamp(t, 0, 1);
+  return { x: ax + dx * t, y: ay + dy * t };
+}
+
+/* ==================================================================
+   11. BALL PHYSICS
+   Substepped so a 1200px/s ball cannot tunnel through a 9px board.
+   ================================================================== */
+function resetBall() {
+  const st = (G.mode === "trick" && level) ? level.start : CONFIG.START;
+  const m = equippedBall();
+  ball.x = st.x; ball.y = st.y;
+  ball.vx = ball.vy = ball.spin = 0;
+  ball.r = CONFIG.PHYSICS.BALL_RADIUS * m.size;
+  ball.live = false; ball.t = 0; ball.restT = 0; ball.rot = 0;
+  ball.touchRim = ball.touchBoard = ball.touchFloor = ball.touchObs = false;
+  ball.trail.length = 0;
+  G.slowUsed = false; G.clutchArmed = false;
+}
+
+function shoot(vx, vy, spin) {
+  const m = equippedBall();
+  ball.vx = vx; ball.vy = vy; ball.spin = spin;
+  ball.live = true; ball.t = 0;
+  ball.launchX = ball.x; ball.launchY = ball.y;
+  G.shots++; SAVE.stats.shots++;
+  const p = clamp(Math.hypot(vx, vy) / CONFIG.AIM.MAX_SPEED, 0, 1);
+  Sound.whoosh(p);
+  haptic(8);
+  // puff of dust off the shooting hand
+  burst(ball.x, ball.y, 8, { c:["#ffffff","#22e6ff"], spMin:40, spMax:150, rMin:1.5, rMax:3, lifeMin:.2, lifeMax:.45, g:120 });
+}
+
+function stepBall(dt) {
+  if (!ball.live) return;
+  const PH = CONFIG.PHYSICS, m = equippedBall();
+  ball.t += dt;
+
+  const SUB = 4, h = dt / SUB;
+  for (let s = 0; s < SUB; s++) {
+    const px = ball.x, py = ball.y;
+
+    // ---- forces
+    ball.vy += PH.GRAVITY * m.grav * h;
+    ball.vx += G.wind * h;
+    ball.vy -= ball.spin * PH.MAGNUS * h;          // backspin gives a little lift
+    const dragK = 1 - PH.AIR_DRAG * m.drag * h;
+    ball.vx *= dragK; ball.vy *= dragK;
+    ball.spin *= 1 - PH.SPIN_DECAY * h;
+
+    // ---- integrate
+    ball.x += ball.vx * h;
+    ball.y += ball.vy * h;
+    ball.rot += (ball.vx * h) / ball.r;
+
+    collideWorld(px, py, m);
+    checkScore(py);
+    if (!ball.live) return;
+  }
+
+  // ---- trail
+  ball.trail.push({ x: ball.x, y: ball.y });
+  if (ball.trail.length > CONFIG.JUICE.TRAIL_LEN) ball.trail.shift();
+
+  // ---- flaming ball / FIRE mode embers
+  if (G.fire || SAVE.ball === "flaming") {
+    if (Math.random() < .75) spawnP({
+      x: ball.x + rand(-5, 5), y: ball.y + rand(-5, 5),
+      vx: -ball.vx * .12 + rand(-30, 30), vy: -ball.vy * .12 + rand(-70, -10),
+      r: rand(2.5, 6), life: rand(.24, .5), c: pick(["#ff7a18","#ffb020","#ff2e93","#ffe14d"]), g: -90
+    });
+  }
+
+  // ---- shot is dead?
+  const sp = Math.hypot(ball.vx, ball.vy);
+  const onFloor = ball.y + ball.r >= CONFIG.WORLD.FLOOR_Y - 1;
+  if (onFloor && sp < PH.SLEEP_SPEED) ball.restT += dt; else ball.restT = 0;
+  if (ball.t > PH.SHOT_TIMEOUT || ball.restT > .3) miss();
+}
+
+function collideWorld(px, py, m) {
+  const PH = CONFIG.PHYSICS, e = CONFIG.HOOP, r = ball.r;
+
+  // --- side walls + ceiling
+  if (ball.x < r) { ball.x = r; ball.vx = Math.abs(ball.vx) * CONFIG.WORLD.WALL_BOUNCE; }
+  if (ball.x > W - r) { ball.x = W - r; ball.vx = -Math.abs(ball.vx) * CONFIG.WORLD.WALL_BOUNCE; }
+  if (ball.y < r) { ball.y = r; ball.vy = Math.abs(ball.vy) * CONFIG.WORLD.WALL_BOUNCE; }
+
+  // --- floor
+  if (ball.y + r > CONFIG.WORLD.FLOOR_Y) {
+    ball.y = CONFIG.WORLD.FLOOR_Y - r;
+    if (ball.vy > 60) {
+      const v = ball.vy;
+      ball.vy = -ball.vy * PH.REST_FLOOR * m.bounce;
+      ball.vx *= PH.FLOOR_FRICTION;
+      if (!ball.touchFloor) ball.touchFloor = true;
+      Sound.bounce(v);
+      burst(ball.x, CONFIG.WORLD.FLOOR_Y, 5, { c:"#ffffff", dir:-Math.PI/2, spread:1.0, spMin:50, spMax:170, rMin:1.2, rMax:2.6, lifeMin:.18, lifeMax:.4, g:500 });
+      if (v > 420) Shake.add(2);
+    } else { ball.vy = 0; ball.vx *= .92; ball.touchFloor = true; }
+  }
+
+  // --- rim nubs (two little circles the ball can clatter off)
+  const rimY = hoop.y + hoop.flex;
+  for (const sx of [-1, 1]) {
+    const nx = hoop.x + sx * e.RIM_HALF, ny = rimY;
+    const dx = ball.x - nx, dy = ball.y - ny, d = Math.hypot(dx, dy), min = r + e.NUB_R;
+    if (d < min && d > 0.0001) {
+      const nX = dx / d, nY = dy / d;
+      ball.x = nx + nX * min; ball.y = ny + nY * min;
+      const vn = ball.vx * nX + ball.vy * nY;
+      if (vn < 0) {
+        const k = PH.REST_RIM * m.bounce;
+        ball.vx -= (1 + k) * vn * nX;
+        ball.vy -= (1 + k) * vn * nY;
+        ball.touchRim = true;
+        hoop.flexV += clamp(-vn * .07, 0, 9);          // rim droops on impact
+        Sound.clank(); haptic(12); Shake.add(3);
+        burst(nx, ny, CONFIG.JUICE.SPARKS, { c:["#ffb020","#ffffff","#ff2e93"], spMin:60, spMax:260, rMin:1.2, rMax:3, lifeMin:.18, lifeMax:.42, g:420, shape:"spark" });
+      }
+    }
+  }
+
+  // --- backboard
+  const bx = hoop.x + e.RIM_HALF + e.BOARD_GAP, by = rimY - e.BOARD_RISE;
+  if (rectHit(bx, by, e.BOARD_W, e.BOARD_H, PH.REST_BOARD * m.bounce)) {
+    if (!ball.touchBoard) { ball.touchBoard = true; }
+    Sound.board(); haptic(10); Shake.add(2.5);
+    burst(ball.x, ball.y, 6, { c:["#22e6ff","#ffffff"], spMin:40, spMax:160, rMin:1.4, rMax:3, lifeMin:.16, lifeMax:.38, g:260 });
+  }
+
+  // --- static level walls
+  for (const w of walls) {
+    if (rectHit(w.x, w.y, w.w, w.h, PH.REST_OBSTACLE * m.bounce)) {
+      ball.touchObs = true;
+      Sound.board(); Shake.add(2);
+      burst(ball.x, ball.y, 6, { c:["#b6ff3a","#ffffff"], spMin:50, spMax:190, rMin:1.3, rMax:3, lifeMin:.16, lifeMax:.4, g:300 });
+    }
+  }
+
+  // --- moving obstacles
+  for (const o of obstacles) {
+    if (o.type === "spinner") {
+      const ax = o.x + Math.cos(o.a) * o.len, ay = o.y + Math.sin(o.a) * o.len;
+      const bx2 = o.x - Math.cos(o.a) * o.len, by2 = o.y - Math.sin(o.a) * o.len;
+      const c = closestOnSeg(ball.x, ball.y, ax, ay, bx2, by2);
+      const dx = ball.x - c.x, dy = ball.y - c.y, d = Math.hypot(dx, dy), min = r + 7;
+      if (d < min && d > .0001) {
+        const nX = dx / d, nY = dy / d;
+        ball.x = c.x + nX * min; ball.y = c.y + nY * min;
+        const vn = ball.vx * nX + ball.vy * nY;
+        if (vn < 0) {
+          const k = PH.REST_OBSTACLE * m.bounce;
+          ball.vx -= (1 + k) * vn * nX; ball.vy -= (1 + k) * vn * nY;
+          // the bar slaps the ball along its tangential direction
+          const rr = Math.hypot(c.x - o.x, c.y - o.y);
+          ball.vx += -Math.sin(o.a) * o.speed * rr * .35;
+          ball.vy += Math.cos(o.a) * o.speed * rr * .35;
+          ball.touchObs = true;
+          Sound.clank(); haptic(16); Shake.add(5);
+          burst(c.x, c.y, 10, { c:["#ff2e93","#ffffff"], spMin:80, spMax:300, rMin:1.4, rMax:3.4, lifeMin:.2, lifeMax:.45, g:380, shape:"spark" });
+        }
+      }
+    } else if (o.type === "hand") {
+      const hx = o.x + o.ox, hy = o.y + o.oy;
+      const dx = ball.x - hx, dy = ball.y - hy, d = Math.hypot(dx, dy), min = r + o.r;
+      if (d < min && d > .0001) {
+        const nX = dx / d, nY = dy / d;
+        ball.x = hx + nX * min; ball.y = hy + nY * min;
+        const vn = ball.vx * nX + ball.vy * nY;
+        if (vn < 0) {
+          const k = PH.REST_OBSTACLE * m.bounce;
+          ball.vx -= (1 + k) * vn * nX; ball.vy -= (1 + k) * vn * nY;
+          ball.touchObs = true;
+          Sound.board(); haptic(20); Shake.add(6);
+          burst(hx, hy, 9, { c:["#ffb020","#ffffff"], spMin:70, spMax:250, rMin:1.5, rMax:3.2, lifeMin:.2, lifeMax:.45, g:340 });
+        }
+      }
+    }
+  }
+
+  // --- net interaction
+  if (Math.abs(ball.x - hoop.x) < e.RIM_HALF + 14 && ball.y > rimY - 6 && ball.y < rimY + e.NET_LEN + 12) {
+    disturbNet(ball.x, ball.y, ball.vx, ball.vy);
+  }
+}
+
+/* circle-vs-axis-aligned-rect, resolved along the shallowest axis */
+function rectHit(rx, ry, rw, rh, rest) {
+  const r = ball.r;
+  const cx = clamp(ball.x, rx, rx + rw), cy = clamp(ball.y, ry, ry + rh);
+  const dx = ball.x - cx, dy = ball.y - cy;
+  const d2 = dx * dx + dy * dy;
+  if (d2 > r * r) return false;
+  let nX, nY;
+  if (d2 > .0001) { const d = Math.sqrt(d2); nX = dx / d; nY = dy / d; ball.x = cx + nX * r; ball.y = cy + nY * r; }
+  else {
+    // centre is inside the rect: eject along the nearest face
+    const left = ball.x - rx, right = rx + rw - ball.x, top = ball.y - ry, bot = ry + rh - ball.y;
+    const mn = Math.min(left, right, top, bot);
+    if (mn === left)      { nX = -1; nY = 0; ball.x = rx - r; }
+    else if (mn === right){ nX = 1;  nY = 0; ball.x = rx + rw + r; }
+    else if (mn === top)  { nX = 0;  nY = -1; ball.y = ry - r; }
+    else                  { nX = 0;  nY = 1;  ball.y = ry + rh + r; }
+  }
+  const vn = ball.vx * nX + ball.vy * nY;
+  if (vn < 0) { ball.vx -= (1 + rest) * vn * nX; ball.vy -= (1 + rest) * vn * nY; return true; }
+  return false;
+}
+
+/* ==================================================================
+   12. SCORING, COMBO, FIRE MODE
+   ================================================================== */
+function comboMult() {
+  const C = CONFIG.SCORING;
+  if (G.combo >= C.FIRE_AT) return C.FIRE_MULT;
+  return C.COMBO_STEPS[Math.min(G.combo, C.COMBO_STEPS.length - 1)];
+}
+
+/* Did the ball just fall through the rim plane, moving down, inside it? */
+function checkScore(py0) {
+  if (!ball.live || ball.vy <= 0) return;
+  const e = CONFIG.HOOP, rimY = hoop.y + hoop.flex;
+  if (py0 < rimY && ball.y >= rimY && Math.abs(ball.x - hoop.x) < e.RIM_HALF - 4) basket();
+}
+
+function basket() {
+  const C = CONFIG.SCORING, J = CONFIG.JUICE, K = CONFIG.COINS;
+  ball.live = false;
+
+  const swish = !ball.touchRim && !ball.touchBoard && !ball.touchObs;
+  const bank = ball.touchBoard && !ball.touchRim;
+  const flightDist = dist(ball.launchX, ball.launchY, hoop.x, hoop.y);
+  const long = flightDist >= C.LONG_MIN_DIST;
+
+  // ---- trick-shot levels enforce their own requirement --------------
+  if (G.mode === "trick" && level && level.need) {
+    const ok = level.need === "bank"  ? ball.touchBoard
+             : level.need === "floor" ? ball.touchFloor
+             : level.need === "swish" ? swish
+             : true;
+    if (!ok) {
+      const why = level.need === "bank" ? "NO BANK!" : level.need === "floor" ? "NO BOUNCE!" : "NOT CLEAN!";
+      pop(hoop.x, hoop.y - 34, why, "#ff2e93", true);
+      Sound.fail(); haptic(J.HAPTIC_MISS);
+      failAttempt();
+      return;
+    }
+  }
+
+  // ---- combo ladder --------------------------------------------------
+  const wasFire = G.fire;
+  if (swish) {
+    G.combo++;
+    G.swishes++; SAVE.stats.swishes++;
+  } else {
+    G.combo = 0;
+  }
+  G.mult = comboMult();
+  G.fire = G.combo >= C.FIRE_AT;
+  G.bestCombo = Math.max(G.bestCombo, G.combo);
+  if (G.fire && !wasFire) {
+    G.everFire = true;
+    Sound.fire(); flash(.42); Shake.add(J.SHAKE_FIRE);
+    haptic([20, 40, 20, 40, 60]);
+    pop(W / 2, 250, "FIRE MODE!", "#ff2e93", true);
+    burst(ball.x, ball.y, 34, { c:["#ff7a18","#ffb020","#ff2e93","#ffe14d"], spMin:120, spMax:420, rMin:2, rMax:6, lifeMin:.4, lifeMax:.9, g:-60 });
+  }
+
+  // ---- points --------------------------------------------------------
+  let pts = C.BASKET;
+  const labels = [];
+  if (swish) { pts += C.SWISH_BONUS; labels.push("SWISH"); }
+  if (bank) { pts += C.BANK_BONUS; labels.push("BANK"); G.bankShots++; SAVE.stats.bankShots++; }
+  if (long) { pts += C.LONG_BONUS; labels.push("DOWNTOWN"); G.longShots++; SAVE.stats.longShots++; }
+  if (ball.touchFloor) { pts += C.FLOOR_BOUNCE_BONUS; labels.push("BOUNCE"); }
+  if (obstacles.length) { pts += C.OBSTACLE_BONUS; G.obstacleBaskets++; SAVE.stats.obstacleBaskets++; }
+  pts = Math.round(pts * G.mult);
+
+  G.score += pts;
+  G.baskets++; SAVE.stats.baskets++;
+
+  // ---- coins ---------------------------------------------------------
+  let coins = K.PER_BASKET;
+  if (swish) coins += K.PER_SWISH;
+  if (long) coins += K.PER_LONG;
+  if (G.fire) coins += K.PER_FIRE_BASKET;
+  G.coinsRun += coins;
+  SAVE.coins += coins; SAVE.stats.coinsEarned += coins;
+
+  // ---- juice ---------------------------------------------------------
+  const label = labels.length ? labels[0] : "";
+  pop(hoop.x, hoop.y - 26, "+" + pts + (label ? " " + label : ""), swish ? "#b6ff3a" : "#22e6ff", swish || G.fire);
+  if (G.mult > 1) pop(hoop.x, hoop.y - 58, "x" + G.mult, G.fire ? "#ff2e93" : "#ffb020");
+  pop(hoop.x + 44, hoop.y - 6, "+" + coins, "#ffb020");
+
+  Shake.add(swish ? J.SHAKE_SWISH : J.SHAKE_BASKET);
+  haptic(swish ? J.HAPTIC_SWISH : J.HAPTIC_BASKET);
+  Sound.swish(); Sound.coin();
+  if (swish || G.fire) { Sound.cheer(); confetti(hoop.x, hoop.y + 12); flash(swish ? .22 : .14); }
+
+  burst(hoop.x, hoop.y + 16, J.SWISH_BURST, {
+    c: G.fire ? ["#ff7a18","#ffb020","#ff2e93"] : ["#22e6ff","#ffffff","#b6ff3a"],
+    dir: Math.PI / 2, spread: 1.1, spMin: 90, spMax: 340, rMin: 1.6, rMax: 4.4,
+    lifeMin: .3, lifeMax: .75, g: 520
+  });
+  // the net snaps as it passes through
+  for (let i = 0; i < hoop.netV.length; i++) hoop.netV[i].y += rand(120, 260);
+  hoop.flexV += 3.4;
+
+  bumpScoreUI();
+  checkAchievements();
+
+  // ---- what happens next ---------------------------------------------
+  if (G.mode === "trick") { levelCleared(); return; }
+  G.resetT = .42;
+  G.state = S.RESET;
+}
+
+function failAttempt() {
+  // a trick-shot attempt that went in but broke the rule
+  ball.live = false;
+  G.combo = 0; G.mult = 1; G.fire = false;
+  G.lives--;
+  updateLivesUI();
+  if (G.lives <= 0) { endRun("failed"); return; }
+  G.resetT = .5; G.state = S.RESET;
+}
+
+function miss() {
+  if (!ball.live) return;
+  ball.live = false;
+  const J = CONFIG.JUICE;
+  G.combo = 0; G.mult = 1;
+  const wasFire = G.fire; G.fire = false;
+  Shake.add(J.SHAKE_MISS);
+  haptic(J.HAPTIC_MISS);
+  Sound.fail();
+  if (wasFire) pop(ball.x, ball.y - 24, "FIRE OUT", "#8a8fb5");
+
+  if (G.mode === "endless") { pop(W / 2, 300, "MISS", "#ff2e93", true); endRun("miss"); return; }
+  if (G.mode === "trick") {
+    G.lives--; updateLivesUI();
+    pop(ball.x, ball.y - 24, "MISS", "#ff2e93");
+    if (G.lives <= 0) { endRun("failed"); return; }
+  } else {
+    pop(ball.x, ball.y - 24, "MISS", "#ff2e93");
+  }
+  G.resetT = .45; G.state = S.RESET;
+}
+
+/* ==================================================================
+   13. RUN LIFECYCLE
+   ================================================================== */
+function startRun(mode, levelIdx) {
+  G.mode = mode;
+  G.state = S.AIM;
+  G.score = 0; G.baskets = 0; G.swishes = 0; G.shots = 0; G.coinsRun = 0;
+  G.combo = 0; G.mult = 1; G.fire = false; G.everFire = false;
+  G.bestCombo = 0; G.longShots = 0; G.bankShots = 0; G.obstacleBaskets = 0;
+  G.tier = 0; G.elapsed = 0; G.newBest = false;
+  G.timeScale = 1; G.slowT = 0; G.resetT = 0;
+  G.wind = G.windTarget = 0;
+  P.length = 0; POPS.length = 0;
+  obstacles = []; walls = []; level = null;
+
+  const md = CONFIG.MODES[mode];
+  G.maxLives = md.lives; G.lives = md.lives;
+  G.timeLeft = md.time;
+
+  if (mode === "trick") {
+    G.level = levelIdx | 0;
+    level = LEVELS[G.level];
+    hoop.tx = hoop.baseX = hoop.x = level.hoop.x;
+    hoop.ty = hoop.baseY = hoop.y = level.hoop.y;
+    hoop.slideAmp = hoop.bobAmp = 0;
+    walls = level.walls.map(w => ({ ...w }));
+    obstacles = level.obs.map(o => ({ ...o, a: o.phase || 0, ox: 0, oy: 0 }));
+    $("objective").textContent = (G.level + 1) + ". " + level.n + " — " + level.hint;
+  } else {
+    hoop.baseX = hoop.x = hoop.tx = 300;
+    hoop.baseY = hoop.y = hoop.ty = 400;
+    applyDifficulty();
+    $("objective").textContent = "";
+  }
+
+  SAVE.stats.plays++;
+  resetBall();
+  updateLivesUI(); updateHUD(); showHUD(true);
+  showScreen(null);
+  coachHint();
+  save();
+}
+
+function levelCleared() {
+  const first = !SAVE.levels.includes(G.level);
+  if (first) { SAVE.levels.push(G.level); SAVE.coins += CONFIG.COINS.LEVEL_CLEAR; G.coinsRun += CONFIG.COINS.LEVEL_CLEAR; }
+  Sound.levelUp(); confetti(W / 2, 300); flash(.3);
+  pop(W / 2, 250, first ? "LEVEL CLEAR +" + CONFIG.COINS.LEVEL_CLEAR : "CLEARED AGAIN", "#b6ff3a", true);
+  SAVE.best.trick = SAVE.levels.length;
+  checkAchievements();
+  saveNow();
+  setTimeout(() => endRun("cleared"), 1100);
+}
+
+function endRun(reason) {
+  G.state = S.OVER;
+  G.timeScale = 1;
+  showHUD(false);
+
+  // best score + local leaderboard (trick mode scores levels cleared instead)
+  if (G.mode !== "trick") {
+    if (G.score > (SAVE.best[G.mode] || 0)) { SAVE.best[G.mode] = G.score; G.newBest = true; }
+    if (G.score > 0) {
+      SAVE.scores.push({ name: SAVE.name || "YOU", score: G.score, mode: G.mode, date: Date.now() });
+      SAVE.scores.sort((a, b) => b.score - a.score);
+      SAVE.scores = SAVE.scores.slice(0, 10);
+    }
+  }
+  SAVE.stats.bestCombo = Math.max(SAVE.stats.bestCombo, G.bestCombo);
+  checkAchievements();
+  saveNow();
+  showScreen("scOver");   // screen first: the celebration animation only runs while it is up
+  buildGameOver(reason);
+}
+
+/* clutch slow-motion: the last heartbeat before a shot that matters */
+function isClutch() {
+  if (G.mode === "time") return G.timeLeft <= 3.5;
+  if (G.mode === "trick") return G.lives === 1;
+  return SAVE.best.endless > 0 && G.score >= SAVE.best.endless - CONFIG.SCORING.BASKET * 3;
+}
+function maybeSlowmo() {
+  if (G.slowUsed || !ball.live || ball.vy <= 0) return;
+  if (!isClutch()) return;
+  if (dist(ball.x, ball.y, hoop.x, hoop.y) < CONFIG.JUICE.SLOWMO_TRIGGER_DIST) {
+    G.slowUsed = true;
+    G.slowT = CONFIG.JUICE.SLOWMO_TIME;
+    flash(.1);
+  }
+}
+
+/* ==================================================================
+   14. ACHIEVEMENTS + DAILY STREAK
+   ================================================================== */
+function checkAchievements() {
+  const run = {
+    mode: G.mode, score: G.score, baskets: G.baskets, swishes: G.swishes,
+    everFire: G.everFire, longShots: G.longShots, combo: G.bestCombo
+  };
+  for (const a of ACHIEVEMENTS) {
+    if (SAVE.ach.includes(a.id)) continue;
+    let ok = false;
+    try { ok = a.test(run, SAVE); } catch (e) { ok = false; }
+    if (ok) {
+      SAVE.ach.push(a.id);
+      toast(a.ic, a.name, a.desc);
+      Sound.levelUp();
+      haptic([12, 30, 12]);
+      save();
+    }
+  }
+}
+
+function toast(ic, title, sub) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.innerHTML = '<span class="ic"></span><span><span class="tt"></span><span class="ts"></span></span>';
+  el.querySelector(".ic").textContent = ic;
+  el.querySelector(".tt").textContent = title;
+  el.querySelector(".ts").textContent = sub;
+  $("toasts").appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
+function dayDiff(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
+
+function checkDailyStreak() {
+  const t = todayKey(), last = SAVE.streak.last;
+  if (last === t) return null;                      // already counted today
+  if (!last) SAVE.streak.days = 1;
+  else {
+    const d = dayDiff(last, t);
+    SAVE.streak.days = d === 1 ? SAVE.streak.days + 1 : 1;
+  }
+  SAVE.streak.last = t;
+  const reward = Math.min(
+    CONFIG.COINS.STREAK_BASE + (SAVE.streak.days - 1) * CONFIG.COINS.STREAK_PER_DAY,
+    CONFIG.COINS.STREAK_CAP
+  );
+  SAVE.coins += reward;
+  SAVE.stats.coinsEarned += reward;
+  saveNow();
+  return { days: SAVE.streak.days, reward };
+}
+
+/* ==================================================================
+   15. RENDERING
+   The court backdrop is static per skin, so it is painted once into an
+   offscreen canvas and blitted. Only the live stuff is redrawn.
+   ================================================================== */
+let bgDirty = true, bgCanvas = document.createElement("canvas"), bgCtx = bgCanvas.getContext("2d");
+
+function paintBackdrop() {
+  const c = equippedCourt();
+  bgCanvas.width = Math.max(1, Math.round(W * DPR));
+  bgCanvas.height = Math.max(1, Math.round(H * DPR));
+  const g = bgCtx;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.clearRect(0, 0, W, H);
+
+  // sky / wall gradient
+  const sky = g.createLinearGradient(0, 0, 0, CONFIG.WORLD.FLOOR_Y);
+  sky.addColorStop(0, c.sky[0]); sky.addColorStop(1, c.sky[1]);
+  g.fillStyle = sky; g.fillRect(0, 0, W, CONFIG.WORLD.FLOOR_Y);
+
+  // big soft glow behind the rim area
+  const glow = g.createRadialGradient(W * .72, 330, 10, W * .72, 330, 340);
+  glow.addColorStop(0, hexA(c.glow, .15)); glow.addColorStop(1, hexA(c.glow, 0));
+  g.fillStyle = glow; g.fillRect(0, 0, W, CONFIG.WORLD.FLOOR_Y);
+
+  g.save();
+  g.globalAlpha = .55;
+  if (c.back === "fence") {
+    // chain-link diagonals
+    g.strokeStyle = hexA(c.line, .5); g.lineWidth = 1;
+    for (let i = -H; i < W + H; i += 26) {
+      g.beginPath(); g.moveTo(i, 0); g.lineTo(i + H, H); g.stroke();
+      g.beginPath(); g.moveTo(i + H, 0); g.lineTo(i, H); g.stroke();
+    }
+    // lamp
+    g.fillStyle = hexA(c.accent, .5); g.fillRect(58, 0, 7, 92);
+    g.beginPath(); g.ellipse(61, 96, 26, 13, 0, 0, TAU); g.fill();
+  } else if (c.back === "crowd") {
+    for (let row = 0; row < 7; row++) {
+      const y = 60 + row * 34, a = .1 + row * .045;
+      g.fillStyle = hexA(row % 2 ? c.glow : c.accent, a);
+      for (let x = 12; x < W; x += 30) {
+        g.beginPath(); g.arc(x + (row % 2) * 15, y, 10 - row * .5, 0, TAU); g.fill();
+      }
+    }
+  } else if (c.back === "skyline") {
+    g.fillStyle = hexA("#ffe14d", .35);
+    g.beginPath(); g.arc(W * .68, 250, 86, 0, TAU); g.fill();
+    g.fillStyle = hexA("#1a0a26", .85);
+    let x = -10;
+    while (x < W + 20) {
+      const bw = rand(34, 62), bh = rand(120, 320);
+      g.fillRect(x, CONFIG.WORLD.FLOOR_Y - bh, bw, bh);
+      g.fillStyle = hexA("#ffb020", .18);
+      for (let wy = CONFIG.WORLD.FLOOR_Y - bh + 14; wy < CONFIG.WORLD.FLOOR_Y - 20; wy += 22)
+        for (let wx = x + 7; wx < x + bw - 9; wx += 15)
+          if (Math.random() < .45) g.fillRect(wx, wy, 6, 9);
+      g.fillStyle = hexA("#1a0a26", .85);
+      x += bw + rand(6, 16);
+    }
+  } else {
+    // arcade: perspective grid + scanlines
+    g.strokeStyle = hexA(c.line, .8); g.lineWidth = 1.2;
+    for (let i = 0; i <= 12; i++) {
+      const x = (i / 12) * W;
+      g.beginPath(); g.moveTo(x, CONFIG.WORLD.FLOOR_Y); g.lineTo(lerp(W / 2, x, 2.4), 210); g.stroke();
+    }
+    for (let i = 1; i < 9; i++) {
+      const y = 210 + Math.pow(i / 9, 2.1) * (CONFIG.WORLD.FLOOR_Y - 210);
+      g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
+    }
+    g.globalAlpha = .12; g.fillStyle = c.glow;
+    for (let y = 0; y < H; y += 4) g.fillRect(0, y, W, 1);
+  }
+  g.restore();
+
+  // floor
+  const fl = g.createLinearGradient(0, CONFIG.WORLD.FLOOR_Y, 0, H);
+  fl.addColorStop(0, c.floor); fl.addColorStop(1, "#05050c");
+  g.fillStyle = fl; g.fillRect(0, CONFIG.WORLD.FLOOR_Y, W, H - CONFIG.WORLD.FLOOR_Y);
+  g.strokeStyle = hexA(c.glow, .75); g.lineWidth = 2.5;
+  g.beginPath(); g.moveTo(0, CONFIG.WORLD.FLOOR_Y); g.lineTo(W, CONFIG.WORLD.FLOOR_Y); g.stroke();
+  // court markings
+  g.strokeStyle = hexA(c.line, .9); g.lineWidth = 2;
+  g.beginPath(); g.ellipse(W * .5, H - 20, 150, 34, 0, Math.PI, TAU); g.stroke();
+  g.beginPath(); g.moveTo(W * .18, CONFIG.WORLD.FLOOR_Y + 22); g.lineTo(W * .82, CONFIG.WORLD.FLOOR_Y + 22); g.stroke();
+
+  bgDirty = false;
+}
+/* "#rrggbb" + alpha -> rgba() */
+function hexA(hex, a) {
+  const h = hex.replace("#", "");
+  const n = parseInt(h.length === 3 ? h.split("").map(x => x + x).join("") : h, 16);
+  return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+}
+
+/* ---------- hoop: pole, backboard, rim, cloth net ---------------- */
+function drawHoop() {
+  const e = CONFIG.HOOP, c = equippedCourt();
+  const rimY = hoop.y + hoop.flex;
+  const bx = hoop.x + e.RIM_HALF + e.BOARD_GAP;
+  const boardTop = rimY - e.BOARD_RISE;
+
+  // support arm out to the right edge
+  ctx.strokeStyle = "#2a2a44"; ctx.lineWidth = 9; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(bx + e.BOARD_W, boardTop + e.BOARD_H * .42);
+  ctx.lineTo(W + 10, boardTop + e.BOARD_H * .42 - 16);
+  ctx.stroke();
+
+  // backboard
+  ctx.fillStyle = hexA(c.glow, .13);
+  roundRect(bx, boardTop, e.BOARD_W, e.BOARD_H, 3); ctx.fill();
+  ctx.strokeStyle = hexA(c.glow, .85); ctx.lineWidth = 2.4;
+  roundRect(bx, boardTop, e.BOARD_W, e.BOARD_H, 3); ctx.stroke();
+  // the inner square target, drawn as a thin bracket on the board face
+  ctx.strokeStyle = hexA("#ffffff", .5); ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(bx - 1, rimY - 44); ctx.lineTo(bx - 1, rimY - 6);
+  ctx.stroke();
+
+  drawNet(rimY);
+
+  // rim: a thick bar with two bright nubs
+  const grd = ctx.createLinearGradient(hoop.x - e.RIM_HALF, rimY, hoop.x + e.RIM_HALF, rimY);
+  grd.addColorStop(0, "#ff6a2b"); grd.addColorStop(.5, "#ff2e93"); grd.addColorStop(1, "#ff6a2b");
+  ctx.strokeStyle = grd; ctx.lineWidth = 6.5; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(hoop.x - e.RIM_HALF, rimY);
+  ctx.quadraticCurveTo(hoop.x, rimY + hoop.flex * .8 + 3, hoop.x + e.RIM_HALF, rimY);
+  ctx.stroke();
+  ctx.shadowColor = "#ff2e93"; ctx.shadowBlur = 16;
+  ctx.strokeStyle = hexA("#ff2e93", .6); ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.shadowBlur = 0;
+  for (const s of [-1, 1]) {
+    ctx.fillStyle = "#ffd9a0";
+    ctx.beginPath(); ctx.arc(hoop.x + s * e.RIM_HALF, rimY, e.NUB_R, 0, TAU); ctx.fill();
+  }
+}
+
+function drawNet(rimY) {
+  const e = CONFIG.HOOP, cols = e.NET_COLS, rows = e.NET_ROWS;
+  const topHalf = e.RIM_HALF, botHalf = e.RIM_HALF * .58;
+  const pt = (i, j) => {
+    const t = j / rows;
+    const half = lerp(topHalf, botHalf, t);
+    const d = hoop.net[i] || { x: 0, y: 0 };
+    return {
+      x: hoop.x - half + (i / cols) * half * 2 + d.x * t,
+      y: rimY + e.NET_LEN * t + d.y * t * .5
+    };
+  };
+  ctx.strokeStyle = "rgba(255,255,255,.42)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  // diagonal mesh both ways = classic net look
+  for (let i = 0; i <= cols; i++) {
+    for (let j = 0; j < rows; j++) {
+      const a = pt(i, j);
+      if (i < cols) { const b = pt(i + 1, j + 1); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
+      if (i > 0) { const b2 = pt(i - 1, j + 1); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); }
+    }
+  }
+  ctx.stroke();
+  // bottom hem
+  ctx.strokeStyle = "rgba(255,255,255,.62)"; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  for (let i = 0; i <= cols; i++) { const p = pt(i, rows); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+  ctx.stroke();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/* ---------- ball ------------------------------------------------- */
+function drawBallAt(g, x, y, r, rot, def, onFire) {
+  g.save(); g.translate(x, y); g.rotate(rot);
+  const grd = g.createRadialGradient(-r * .3, -r * .35, r * .15, 0, 0, r);
+  grd.addColorStop(0, def.c1); grd.addColorStop(1, def.c2);
+  g.fillStyle = grd;
+  g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
+
+  g.strokeStyle = def.line; g.lineWidth = Math.max(1.1, r * .09);
+  if (def.style === "lines" || def.style === "ember") {
+    g.beginPath(); g.moveTo(-r, 0); g.lineTo(r, 0); g.stroke();
+    g.beginPath(); g.moveTo(0, -r); g.lineTo(0, r); g.stroke();
+    g.beginPath(); g.ellipse(0, 0, r * .52, r, 0, 0, TAU); g.stroke();
+  } else if (def.style === "veins") {
+    g.globalAlpha = .55;
+    for (let i = 0; i < 3; i++) {
+      g.beginPath();
+      g.moveTo(-r, -r * .5 + i * r * .5);
+      g.quadraticCurveTo(0, -r * .2 + i * r * .55, r, -r * .6 + i * r * .55);
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+  } else if (def.style === "glow") {
+    g.shadowColor = def.c1; g.shadowBlur = r * 1.1;
+    g.beginPath(); g.arc(0, 0, r * .72, 0, TAU); g.stroke();
+    g.shadowBlur = 0;
+    g.beginPath(); g.moveTo(-r, 0); g.lineTo(r, 0); g.stroke();
+  } else if (def.style === "ring") {
+    g.globalAlpha = .9;
+    g.beginPath(); g.ellipse(0, 0, r * 1.45, r * .34, -.4, 0, TAU); g.stroke();
+    g.globalAlpha = 1;
+    g.beginPath(); g.arc(r * .25, -r * .2, r * .26, 0, TAU); g.fillStyle = hexA("#ffffff", .25); g.fill();
+  } else if (def.style === "panels") {
+    const cols = ["#ff2e93", "#ffe14d", "#22e6ff", "#ffffff", "#b6ff3a", "#ff8c2b"];
+    for (let i = 0; i < 6; i++) {
+      g.fillStyle = cols[i];
+      g.beginPath(); g.moveTo(0, 0);
+      g.arc(0, 0, r, (i / 6) * TAU, ((i + 1) / 6) * TAU); g.closePath(); g.fill();
+    }
+    g.strokeStyle = "#ffffff"; g.lineWidth = r * .07;
+    g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke();
+  }
+  // specular highlight
+  g.globalAlpha = .28; g.fillStyle = "#fff";
+  g.beginPath(); g.ellipse(-r * .34, -r * .4, r * .3, r * .2, -.6, 0, TAU); g.fill();
+  g.globalAlpha = 1;
+  g.restore();
+
+  if (onFire) {
+    g.save();
+    g.globalCompositeOperation = "lighter";
+    const fg = g.createRadialGradient(x, y, r * .4, x, y, r * 2.1);
+    fg.addColorStop(0, "rgba(255,180,40,.55)");
+    fg.addColorStop(.5, "rgba(255,80,20,.22)");
+    fg.addColorStop(1, "rgba(255,40,10,0)");
+    g.fillStyle = fg;
+    g.beginPath(); g.arc(x, y, r * 2.1, 0, TAU); g.fill();
+    g.restore();
+  }
+}
+
+function drawBall() {
+  const def = equippedBall();
+  const onFire = G.fire || def.id === "flaming";
+  // trail
+  if (ball.trail.length > 1) {
+    ctx.save();
+    for (let i = 0; i < ball.trail.length; i++) {
+      const t = i / ball.trail.length;
+      ctx.globalAlpha = t * .38 * CONFIG.JUICE.TRAIL_FADE;
+      ctx.fillStyle = onFire ? "#ff7a18" : def.trail;
+      ctx.beginPath(); ctx.arc(ball.trail[i].x, ball.trail[i].y, ball.r * (.25 + t * .72), 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+  // contact shadow on the floor
+  const sy = CONFIG.WORLD.FLOOR_Y;
+  const k = clamp(1 - (sy - ball.y) / 420, .06, .5);
+  ctx.globalAlpha = k * .5; ctx.fillStyle = "#000";
+  ctx.beginPath(); ctx.ellipse(ball.x, sy + 4, ball.r * (.5 + k), ball.r * .32, 0, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  drawBallAt(ctx, ball.x, ball.y, ball.r, ball.rot, def, onFire);
+}
+
+/* ---------- obstacles + walls ------------------------------------ */
+function drawObstacles() {
+  for (const w of walls) {
+    ctx.fillStyle = "rgba(182,255,58,.14)";
+    roundRect(w.x, w.y, w.w, w.h, 5); ctx.fill();
+    ctx.strokeStyle = "#b6ff3a"; ctx.lineWidth = 2.2;
+    roundRect(w.x, w.y, w.w, w.h, 5); ctx.stroke();
+  }
+  for (const o of obstacles) {
+    if (o.type === "spinner") {
+      const ax = o.x + Math.cos(o.a) * o.len, ay = o.y + Math.sin(o.a) * o.len;
+      const bx = o.x - Math.cos(o.a) * o.len, by = o.y - Math.sin(o.a) * o.len;
+      ctx.strokeStyle = "rgba(255,46,147,.25)"; ctx.lineWidth = 18; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      ctx.strokeStyle = "#ff2e93"; ctx.lineWidth = 9;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      ctx.fillStyle = "#12121f"; ctx.strokeStyle = "#ff8fc4"; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(o.x, o.y, 7, 0, TAU); ctx.fill(); ctx.stroke();
+    } else {
+      const hx = o.x + o.ox, hy = o.y + o.oy;
+      // a defender's hand: palm + four fingers, reaching up
+      ctx.save(); ctx.translate(hx, hy);
+      ctx.fillStyle = "rgba(255,176,32,.2)";
+      ctx.beginPath(); ctx.arc(0, 0, o.r + 7, 0, TAU); ctx.fill();
+      ctx.fillStyle = CONFIG.PLAYER.SKIN;
+      ctx.beginPath(); ctx.arc(0, 2, o.r * .82, 0, TAU); ctx.fill();
+      for (let i = 0; i < 4; i++) {
+        const a = -Math.PI / 2 + (i - 1.5) * .34;
+        ctx.save(); ctx.rotate(a);
+        ctx.fillStyle = CONFIG.PLAYER.SKIN;
+        roundRect(-3.4, -o.r * 1.5, 6.8, o.r * .95, 3.4); ctx.fill();
+        ctx.restore();
+      }
+      ctx.strokeStyle = hexA("#ffb020", .8); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, o.r + 7, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+/* ---------- the player: HEN, #7, purple ------------------------- */
+function drawPlayer(g, x, y, s, pose, t) {
+  const P0 = CONFIG.PLAYER;
+  const crouch = pose === "aim" ? 7 : 0;
+  const jump = pose === "celebrate" ? Math.abs(Math.sin(t * 3.2)) * 13 : 0;
+  const bob = pose === "idle" ? Math.sin(t * 2.1) * 1.8 : 0;
+  g.save();
+  g.translate(x, y - jump + bob);
+  g.scale(s, s);
+
+  // ground shadow
+  g.globalAlpha = .34; g.fillStyle = "#000";
+  g.beginPath(); g.ellipse(0, 4 + jump * .4, 24 - jump * .3, 6.5, 0, 0, TAU); g.fill();
+  g.globalAlpha = 1;
+
+  const hipY = -52 + crouch, headY = -100 + crouch;
+
+  // legs
+  g.strokeStyle = "#2b2b46"; g.lineWidth = 11; g.lineCap = "round";
+  const spread = pose === "celebrate" ? 15 : 10;
+  g.beginPath(); g.moveTo(-5, hipY + 6); g.lineTo(-spread, -6 - jump * .2); g.stroke();
+  g.beginPath(); g.moveTo(5, hipY + 6); g.lineTo(spread, -6 - jump * .2); g.stroke();
+  // shoes
+  g.fillStyle = P0.SHOE;
+  g.beginPath(); g.ellipse(-spread - 2, -3, 8, 4.5, 0, 0, TAU); g.fill();
+  g.beginPath(); g.ellipse(spread + 2, -3, 8, 4.5, 0, 0, TAU); g.fill();
+
+  // shorts
+  g.fillStyle = P0.JERSEY_DARK;
+  rr(g, -13, hipY - 4, 26, 20, 6); g.fill();
+
+  // jersey
+  g.fillStyle = P0.JERSEY;
+  rr(g, -14, hipY - 34, 28, 33, 8); g.fill();
+  g.fillStyle = "rgba(255,255,255,.9)";
+  g.font = '900 15px ' + FONT; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(P0.NUMBER, 0, hipY - 17);
+
+  // arms
+  g.strokeStyle = P0.SKIN; g.lineWidth = 8;
+  if (pose === "celebrate") {
+    g.beginPath(); g.moveTo(-11, hipY - 28); g.lineTo(-27, headY - 14); g.stroke();
+    g.beginPath(); g.moveTo(11, hipY - 28); g.lineTo(27, headY - 14); g.stroke();
+  } else if (pose === "shoot") {
+    g.beginPath(); g.moveTo(-11, hipY - 28); g.lineTo(-19, headY - 6); g.stroke();
+    g.beginPath(); g.moveTo(11, hipY - 28); g.lineTo(16, headY - 12); g.stroke();
+  } else if (pose === "aim") {
+    g.beginPath(); g.moveTo(-11, hipY - 26); g.lineTo(-20, hipY - 44); g.stroke();
+    g.beginPath(); g.moveTo(11, hipY - 26); g.lineTo(18, hipY - 42); g.stroke();
+  } else {
+    g.beginPath(); g.moveTo(-11, hipY - 26); g.lineTo(-17, hipY - 6); g.stroke();
+    g.beginPath(); g.moveTo(11, hipY - 26); g.lineTo(17, hipY - 6); g.stroke();
+  }
+
+  // head + headband
+  g.fillStyle = P0.SKIN;
+  g.beginPath(); g.arc(0, headY, 13, 0, TAU); g.fill();
+  g.fillStyle = "#14142a";
+  g.beginPath(); g.arc(0, headY - 3, 13, Math.PI * 1.08, Math.PI * 1.92); g.fill();
+  g.fillStyle = P0.JERSEY;
+  rr(g, -13, headY - 6, 26, 5, 2.5); g.fill();
+  // face
+  g.fillStyle = "#1b1b2e";
+  g.beginPath(); g.arc(-4.5, headY + 1, 1.7, 0, TAU); g.fill();
+  g.beginPath(); g.arc(4.5, headY + 1, 1.7, 0, TAU); g.fill();
+  g.strokeStyle = "#1b1b2e"; g.lineWidth = 1.6; g.lineCap = "round";
+  g.beginPath();
+  if (pose === "celebrate") g.arc(0, headY + 4, 5, .15 * Math.PI, .85 * Math.PI);
+  else g.arc(0, headY + 5, 3.4, .1 * Math.PI, .9 * Math.PI);
+  g.stroke();
+  g.restore();
+}
+function rr(g, x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+/* ==================================================================
+   16. AIM PREVIEW
+   Simulated with the exact same forces as the live ball, so the dots
+   never lie to you.
+   ================================================================== */
+const aim = { active: false, sx: 0, sy: 0, cx: 0, cy: 0 };
+
+function aimVector() {
+  const A = CONFIG.AIM;
+  let dx = aim.sx - aim.cx, dy = aim.sy - aim.cy;      // pull back -> shoot forward
+  let len = Math.hypot(dx, dy);
+  if (len < .001) return { vx: 0, vy: 0, spin: 0, power: 0, len: 0 };
+  const use = Math.min(len, A.MAX_DRAG);
+  const speed = Math.min(use * A.POWER_PER_PX, A.MAX_SPEED);
+  const ux = dx / len, uy = dy / len;
+  return {
+    vx: ux * speed, vy: uy * speed,
+    spin: -(aim.cx - aim.sx) * CONFIG.PHYSICS.SPIN_PER_PX * .02,
+    power: use / A.MAX_DRAG, len
+  };
+}
+
+function simulateArc(vx, vy, spin) {
+  const PH = CONFIG.PHYSICS, m = equippedBall(), A = CONFIG.AIM;
+  let x = ball.x, y = ball.y, sx = vx, sy = vy, sp = spin;
+  const pts = [];
+  const SUB = 3, step = A.DOT_TIME_STEP / SUB;
+  for (let i = 0; i < A.DOT_COUNT; i++) {
+    for (let s = 0; s < SUB; s++) {
+      sy += PH.GRAVITY * m.grav * step;
+      sx += G.wind * step;
+      sy -= sp * PH.MAGNUS * step;
+      const k = 1 - PH.AIR_DRAG * m.drag * step;
+      sx *= k; sy *= k; sp *= 1 - PH.SPIN_DECAY * step;
+      x += sx * step; y += sy * step;
+    }
+    if (y > CONFIG.WORLD.FLOOR_Y - ball.r || x < 0 || x > W) { pts.push({ x, y }); break; }
+    pts.push({ x, y });
+  }
+  return pts;
+}
+
+function drawAim() {
+  if (!aim.active) return;
+  const A = CONFIG.AIM, v = aimVector();
+  if (v.len < A.MIN_DRAG) return;
+  const pts = simulateArc(v.vx, v.vy, v.spin);
+  const hot = G.fire ? "#ff2e93" : "#22e6ff";
+
+  // dotted arc, fading and shrinking with distance
+  for (let i = 0; i < pts.length; i++) {
+    const t = i / pts.length;
+    ctx.globalAlpha = (1 - t) * .9;
+    ctx.fillStyle = i < 3 ? "#ffffff" : hot;
+    ctx.beginPath();
+    ctx.arc(pts[i].x, pts[i].y, lerp(A.DOT_MAX_R, A.DOT_MIN_R, t), 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // the drag itself, drawn where your thumb actually is
+  ctx.strokeStyle = hexA(hot, .45); ctx.lineWidth = 2.5;
+  ctx.setLineDash([5, 6]);
+  ctx.beginPath(); ctx.moveTo(aim.sx, aim.sy); ctx.lineTo(aim.cx, aim.cy); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = hexA(hot, .3);
+  ctx.beginPath(); ctx.arc(aim.sx, aim.sy, 7, 0, TAU); ctx.fill();
+  ctx.strokeStyle = hexA(hot, .7); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(aim.cx, aim.cy, 13, 0, TAU); ctx.stroke();
+
+  // power ring around the ball
+  ctx.strokeStyle = hexA(v.power > .95 ? "#ff2e93" : hot, .85);
+  ctx.lineWidth = 3.5; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r + 9, -Math.PI / 2, -Math.PI / 2 + TAU * v.power);
+  ctx.stroke();
+}
+
+/* ---------- wind arrow ------------------------------------------- */
+function drawWind() {
+  if (Math.abs(G.wind) < 8) return;
+  const x = W / 2, y = 168, dir = sign(G.wind);
+  const strength = clamp(Math.abs(G.wind) / CONFIG.DIFFICULTY.WIND_MAX, .2, 1);
+  const len = 26 + 40 * strength;
+  ctx.save();
+  ctx.globalAlpha = .9;
+  ctx.strokeStyle = "#b6ff3a"; ctx.lineWidth = 3.4; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x - dir * len / 2, y); ctx.lineTo(x + dir * len / 2, y); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + dir * len / 2, y);
+  ctx.lineTo(x + dir * (len / 2 - 11), y - 8);
+  ctx.moveTo(x + dir * len / 2, y);
+  ctx.lineTo(x + dir * (len / 2 - 11), y + 8);
+  ctx.stroke();
+  // speed streaks
+  ctx.globalAlpha = .35; ctx.lineWidth = 2;
+  for (let i = 1; i <= 2; i++) {
+    const o = i * 9;
+    ctx.beginPath();
+    ctx.moveTo(x - dir * len / 2 + dir * 6, y - o); ctx.lineTo(x + dir * (len / 2 - 14), y - o);
+    ctx.moveTo(x - dir * len / 2 + dir * 6, y + o); ctx.lineTo(x + dir * (len / 2 - 14), y + o);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#b6ff3a"; ctx.font = '900 10px ' + FONT;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("WIND", x, y - 22);
+  ctx.restore();
+}
+
+/* ---------- tier banner ------------------------------------------ */
+let tierBanner = { text: "", t: 0 };
+function showTierBanner(txt) { tierBanner.text = txt; tierBanner.t = 2.2; }
+function drawTierBanner(dt) {
+  if (tierBanner.t <= 0) return;
+  tierBanner.t -= dt;
+  const k = clamp(tierBanner.t / 2.2, 0, 1);
+  const inK = clamp((2.2 - tierBanner.t) / .3, 0, 1);
+  ctx.save();
+  ctx.globalAlpha = Math.min(k < .25 ? k / .25 : 1, inK);
+  ctx.translate(W / 2, 212);
+  ctx.scale(easeOutBack(inK), easeOutBack(inK));
+  ctx.font = '900 19px ' + FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.lineWidth = 6; ctx.strokeStyle = "rgba(0,0,0,.6)";
+  ctx.strokeText(tierBanner.text, 0, 0);
+  ctx.fillStyle = "#ffb020"; ctx.fillText(tierBanner.text, 0, 0);
+  ctx.restore();
+}
+
+/* ==================================================================
+   17. MAIN DRAW
+   ================================================================== */
+function draw(dt) {
+  if (bgDirty) paintBackdrop();
+  ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+  ctx.save();
+  ctx.translate(Shake.x, Shake.y);
+
+  ctx.drawImage(bgCanvas, 0, 0, W, H);
+
+  drawObstacles();
+  drawHoop();
+
+  const pose = G.state === S.FLIGHT ? "shoot" : (aim.active ? "aim" : "idle");
+  const st = (G.mode === "trick" && level) ? level.start : CONFIG.START;
+  drawPlayer(ctx, st.x - 14, CONFIG.WORLD.FLOOR_Y, 1, pose, G.elapsed);
+
+  drawBall();
+  drawAim();
+  drawP();
+  drawWind();
+  drawTierBanner(dt);
+  drawPops();
+
+  ctx.restore();
+}
+
+/* ==================================================================
+   18. UPDATE
+   ================================================================== */
+function update(dt) {
+  G.elapsed += dt;
+
+  // clutch slow motion decays in REAL time, gameplay runs scaled
+  if (G.slowT > 0) { G.slowT -= dt; G.timeScale = CONFIG.JUICE.SLOWMO_SCALE; }
+  else if (aim.active) G.timeScale = CONFIG.AIM.AIM_SLOWDOWN;
+  else G.timeScale = 1;
+
+  const sdt = dt * G.timeScale;
+
+  Shake.update(dt);
+  updateFlash(dt);
+  updateP(sdt);
+  updatePops(dt);
+
+  if (G.state === S.MENU || G.state === S.OVER || G.state === S.PAUSED) { updateHoop(sdt); updateObstacles(sdt); return; }
+
+  // wind eases toward its target and gusts a little
+  G.wind = lerp(G.wind, G.windTarget + Math.sin(G.elapsed * 1.7) * Math.abs(G.windTarget) * .18, 1 - Math.pow(.02, dt));
+
+  updateHoop(sdt);
+  updateObstacles(sdt);
+
+  if (G.state === S.FLIGHT) {
+    stepBall(sdt);
+    maybeSlowmo();
+    if (!ball.live && G.state === S.FLIGHT) { /* basket()/miss() already moved us on */ }
+  }
+
+  if (G.state === S.RESET) {
+    G.resetT -= dt;
+    if (G.resetT <= 0) nextShot();
+  }
+
+  // Time Attack clock
+  if (G.mode === "time" && (G.state === S.AIM || G.state === S.FLIGHT || G.state === S.RESET)) {
+    G.timeLeft -= dt;
+    if (G.timeLeft <= 0) { G.timeLeft = 0; updateHUD(); endRun("time"); return; }
+  }
+  updateHUD();
+}
+
+function nextShot() {
+  if (G.mode !== "trick") {
+    const before = G.tier;
+    applyDifficulty();
+    if (G.tier > before) {
+      const msgs = ["", "STEP BACK", "THE RIM MOVES", "IT BOBS NOW", "WIND PICKING UP", "TRAFFIC INCOMING",
+                    "FASTER", "HARDER", "RELENTLESS", "RIM CITY MASTER"];
+      showTierBanner(msgs[Math.min(G.tier, msgs.length - 1)] || "HARDER");
+      Sound.levelUp(); flash(.12);
+    }
+  }
+  resetBall();
+  G.state = S.AIM;
+}
+
+/* ==================================================================
+   19. INPUT  (one thumb: press, drag back, release)
+   ================================================================== */
+function toLocal(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+}
+function onDown(e) {
+  Sound.init(); Sound.resume();
+  if (G.state !== S.AIM) return;
+  const p = toLocal(e);
+  aim.active = true; aim.sx = aim.cx = p.x; aim.sy = aim.cy = p.y;
+  hideCoach();
+  e.preventDefault();
+}
+function onMove(e) {
+  if (!aim.active) return;
+  const p = toLocal(e);
+  aim.cx = p.x; aim.cy = p.y;
+  e.preventDefault();
+}
+function onUp(e) {
+  if (!aim.active) return;
+  aim.active = false;
+  const v = aimVector();
+  if (v.len < CONFIG.AIM.MIN_DRAG) return;       // too small: treat as a stray tap
+  shoot(v.vx, v.vy, v.spin);
+  G.state = S.FLIGHT;
+  e.preventDefault();
+}
+cv.addEventListener("pointerdown", onDown, { passive: false });
+window.addEventListener("pointermove", onMove, { passive: false });
+window.addEventListener("pointerup", onUp, { passive: false });
+window.addEventListener("pointercancel", () => { aim.active = false; });
+
+/* ==================================================================
+   20. GAME LOOP
+   ================================================================== */
+let last = performance.now(), acc = 0, running = true;
+function frame(now) {
+  requestAnimationFrame(frame);
+  let dt = (now - last) / 1000;
+  last = now;
+  if (dt > .05) dt = .05;                 // never let a stall teleport the ball
+  if (!running) return;
+  update(dt);
+  draw(dt);
+}
+requestAnimationFrame(frame);
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && (G.state === S.AIM || G.state === S.FLIGHT || G.state === S.RESET)) pause();
+  last = performance.now();
+});
+
+/* ==================================================================
+   21. UI: screens, HUD, shop, boards
+   ================================================================== */
+const SCREENS = ["scTitle","scModes","scLevels","scShop","scScores","scAch","scPause","scOver"];
+let currentScreen = "scTitle";
+
+function showScreen(id) {
+  for (const s of SCREENS) $(s).classList.toggle("on", s === id);
+  currentScreen = id;
+  if (id) Sound.click();
+}
+function showHUD(on) { $("hud").classList.toggle("on", !!on); }
+
+function updateHUD() {
+  const sc = $("score");
+  if (sc.textContent !== String(G.score)) sc.textContent = G.score;
+  $("coinTxt").textContent = fmt(SAVE.coins);
+
+  const cm = $("combo");
+  if (G.fire) { cm.textContent = "🔥 FIRE x" + G.mult; cm.classList.add("on", "fire"); }
+  else if (G.combo > 0) { cm.textContent = "COMBO x" + G.mult; cm.classList.add("on"); cm.classList.remove("fire"); }
+  else { cm.classList.remove("on", "fire"); }
+
+  const tm = $("timer");
+  if (G.mode === "time") {
+    tm.style.display = "";
+    tm.textContent = Math.ceil(Math.max(0, G.timeLeft));
+    tm.classList.toggle("low", G.timeLeft <= 10);
+  } else tm.style.display = "none";
+}
+function bumpScoreUI() {
+  const sc = $("score"), ch = $("coinChip");
+  sc.classList.add("bump"); ch.classList.add("bump");
+  setTimeout(() => { sc.classList.remove("bump"); ch.classList.remove("bump"); }, 150);
+}
+function updateLivesUI() {
+  const box = $("lives");
+  box.innerHTML = "";
+  if (G.maxLives <= 1) return;                // Endless shows no hearts: you get one life, you know it
+  for (let i = 0; i < G.maxLives; i++) {
+    const d = document.createElement("div");
+    d.className = "life" + (i < G.lives ? "" : " gone");
+    box.appendChild(d);
+  }
+}
+let coachT = 0;
+function coachHint() {
+  if (SAVE.stats.shots > 6) return;          // only nag a brand-new player
+  $("coach").classList.add("on");
+  clearTimeout(coachT);
+  coachT = setTimeout(hideCoach, 6000);
+}
+function hideCoach() { $("coach").classList.remove("on"); }
+
+/* ---------- pause ------------------------------------------------ */
+function pause() {
+  if (G.state === S.OVER || G.state === S.MENU) return;
+  G._resume = G.state;
+  G.state = S.PAUSED;
+  aim.active = false;
+  showScreen("scPause");
+}
+function resume() {
+  G.state = G._resume || S.AIM;
+  showScreen(null);
+  last = performance.now();
+}
+
+/* ---------- shop -------------------------------------------------- */
+let shopTab = "balls";
+function renderShop() {
+  $("shopCoins").textContent = fmt(SAVE.coins);
+  const grid = $("shopGrid");
+  grid.innerHTML = "";
+  const items = shopTab === "balls" ? BALLS : COURTS;
+  const owned = shopTab === "balls" ? SAVE.ownedBalls : SAVE.ownedCourts;
+  const equipped = shopTab === "balls" ? SAVE.ball : SAVE.court;
+
+  for (const it of items) {
+    const has = owned.includes(it.id), eq = equipped === it.id;
+    const card = document.createElement("div");
+    card.className = "card" + (has ? " owned" : " locked") + (eq ? " equipped" : "");
+
+    const c = document.createElement("canvas");
+    c.width = 112; c.height = 112;
+    const g = c.getContext("2d");
+    g.scale(2, 2);
+    if (shopTab === "balls") drawBallAt(g, 28, 28, 22, .35, it, it.id === "flaming");
+    else drawCourtSwatch(g, it);
+    card.appendChild(c);
+
+    const nm = document.createElement("div"); nm.className = "cn"; nm.textContent = it.name;
+    const bl = document.createElement("div"); bl.className = "cs"; bl.textContent = it.blurb;
+    const pr = document.createElement("div");
+    pr.className = "cp" + (eq ? " eq" : "");
+    pr.textContent = eq ? "EQUIPPED" : (has ? "TAP TO EQUIP" : "● " + it.price);
+    card.append(nm, bl, pr);
+
+    card.onclick = () => {
+      if (eq) return;
+      if (has) {
+        if (shopTab === "balls") SAVE.ball = it.id; else { SAVE.court = it.id; bgDirty = true; }
+        Sound.click(); haptic(10);
+      } else if (SAVE.coins >= it.price) {
+        SAVE.coins -= it.price;
+        owned.push(it.id);
+        if (shopTab === "balls") SAVE.ball = it.id; else { SAVE.court = it.id; bgDirty = true; }
+        Sound.buy(); haptic([10, 30, 10]);
+        toast("⭐", "Unlocked " + it.name, "-" + it.price + " coins");
+        checkAchievements();
+      } else {
+        Sound.fail(); haptic(30);
+        toast("🔒", "Not enough coins", "You need " + (it.price - SAVE.coins) + " more");
+        return;
+      }
+      saveNow(); renderShop(); resetBall();
+    };
+    grid.appendChild(card);
+  }
+}
+function drawCourtSwatch(g, c) {
+  const grd = g.createLinearGradient(0, 0, 0, 56);
+  grd.addColorStop(0, c.sky[0]); grd.addColorStop(1, c.sky[1]);
+  g.fillStyle = grd; rr(g, 0, 0, 56, 56, 10); g.fill();
+  g.fillStyle = c.floor; rr(g, 0, 38, 56, 18, 8); g.fill();
+  g.strokeStyle = c.glow; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(3, 39); g.lineTo(53, 39); g.stroke();
+  g.fillStyle = c.accent;
+  g.beginPath(); g.arc(40, 20, 6, 0, TAU); g.fill();
+  g.strokeStyle = hexA(c.glow, .6); g.lineWidth = 1.4;
+  rr(g, 1, 1, 54, 54, 10); g.stroke();
+}
+
+/* ---------- high scores + achievements ---------------------------- */
+const MODE_LABEL = { endless: "Endless", time: "Time", trick: "Trick" };
+function renderScores() {
+  const list = $("scoreList");
+  list.innerHTML = "";
+  if (!SAVE.scores.length) {
+    list.innerHTML = '<div class="li"><span class="nm" style="color:#8a8fb5;font-weight:700">No runs yet. Go get one.</span></div>';
+    return;
+  }
+  SAVE.scores.forEach((s, i) => {
+    const el = document.createElement("div");
+    el.className = "li" + (s.name === SAVE.name ? " me" : "");
+    el.innerHTML = '<span class="rk"></span><span class="nm"></span><span class="md"></span><span class="sc"></span>';
+    el.querySelector(".rk").textContent = (i + 1);
+    el.querySelector(".nm").textContent = s.name;
+    el.querySelector(".md").textContent = MODE_LABEL[s.mode] || s.mode;
+    el.querySelector(".sc").textContent = fmt(s.score);
+    list.appendChild(el);
+  });
+}
+function renderAch() {
+  const list = $("achList");
+  list.innerHTML = "";
+  $("achCount").textContent = SAVE.ach.length + " of " + ACHIEVEMENTS.length + " unlocked";
+  for (const a of ACHIEVEMENTS) {
+    const got = SAVE.ach.includes(a.id);
+    const el = document.createElement("div");
+    el.className = "ach" + (got ? " got" : "");
+    el.innerHTML = '<span class="ic"></span><span class="tx"><b></b><span></span></span>';
+    el.querySelector(".ic").textContent = a.ic;
+    el.querySelector("b").textContent = got ? a.name : "???";
+    el.querySelector(".tx span").textContent = a.desc;
+    list.appendChild(el);
+  }
+}
+function renderLevels() {
+  const grid = $("lvGrid");
+  grid.innerHTML = "";
+  LEVELS.forEach((lv, i) => {
+    const done = SAVE.levels.includes(i);
+    const open = i === 0 || SAVE.levels.includes(i - 1);
+    const b = document.createElement("button");
+    b.className = "lv " + (done ? "done" : open ? "open" : "lock");
+    b.textContent = done ? "✓" : (i + 1);
+    b.title = lv.n;
+    b.onclick = () => {
+      if (!open && !done) { Sound.fail(); toast("🔒", "Locked", "Clear level " + i + " first"); return; }
+      startRun("trick", i);
+    };
+    grid.appendChild(b);
+  });
+}
+function renderBests() {
+  $("bestEndless").textContent = SAVE.best.endless ? "BEST " + fmt(SAVE.best.endless) : "";
+  $("bestTime").textContent = SAVE.best.time ? "BEST " + fmt(SAVE.best.time) : "";
+  $("bestTrick").textContent = SAVE.levels.length + "/" + LEVELS.length;
+}
+
+/* ---------- game over -------------------------------------------- */
+let goRAF = 0, goT = 0;
+function buildGameOver(reason) {
+  const titles = {
+    miss:    "Run over",
+    time:    "Time up",
+    failed:  "Out of tries",
+    cleared: "Level clear"
+  };
+  $("overTitle").textContent = titles[reason] || "Run over";
+  $("overScore").textContent = G.mode === "trick" ? SAVE.levels.length + "/" + LEVELS.length : fmt(G.score);
+  $("overBest").innerHTML = G.newBest
+    ? '<div class="newbest">New personal best</div>'
+    : '<div class="sub">' + (G.mode === "trick"
+        ? (reason === "cleared" ? "“" + LEVELS[G.level].n + "” cleared" : "Give it another run")
+        : "Best " + fmt(SAVE.best[G.mode] || 0)) + '</div>';
+  $("stBaskets").textContent = G.baskets;
+  $("stSwish").textContent = G.swishes;
+  $("stCombo").textContent = "x" + comboMultFor(G.bestCombo);
+  $("stCoins").textContent = G.coinsRun;
+
+  if (reason === "cleared" || G.newBest) { Sound.cheer(); }
+  startGoAnim();
+}
+function comboMultFor(c) {
+  const C = CONFIG.SCORING;
+  return c >= C.FIRE_AT ? C.FIRE_MULT : C.COMBO_STEPS[Math.min(c, C.COMBO_STEPS.length - 1)];
+}
+/* the celebrating avatar on the results screen */
+function startGoAnim() {
+  cancelAnimationFrame(goRAF);
+  const c = $("goCanvas"), g = c.getContext("2d");
+  goT = 0;
+  const confs = [];
+  for (let i = 0; i < 26; i++)
+    confs.push({ x: rand(20, 280), y: rand(-200, 0), vy: rand(50, 130), r: rand(3, 7),
+                 c: pick(["#22e6ff","#ff2e93","#ffb020","#b6ff3a","#ffffff"]), rot: rand(0, TAU), vr: rand(-4, 4) });
+  let prev = performance.now();
+  (function loop(now) {
+    if (currentScreen !== "scOver") return;
+    goRAF = requestAnimationFrame(loop);
+    const dt = Math.min(.05, (now - prev) / 1000); prev = now; goT += dt;
+    g.clearRect(0, 0, 300, 300);
+    // glow pad
+    const rg = g.createRadialGradient(150, 250, 6, 150, 250, 130);
+    rg.addColorStop(0, "rgba(139,92,246,.45)"); rg.addColorStop(1, "rgba(139,92,246,0)");
+    g.fillStyle = rg; g.fillRect(0, 120, 300, 180);
+    for (const p of confs) {
+      p.y += p.vy * dt; p.rot += p.vr * dt;
+      if (p.y > 300) { p.y = -10; p.x = rand(20, 280); }
+      g.save(); g.translate(p.x, p.y); g.rotate(p.rot);
+      g.fillStyle = p.c; g.fillRect(-p.r, -p.r * .5, p.r * 2, p.r); g.restore();
+    }
+    g.save(); g.translate(150, 262); g.scale(1.25, 1.25);
+    drawPlayer(g, 0, 0, 1, "celebrate", goT);
+    g.restore();
+    // name tag
+    g.font = '900 17px ' + FONT; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "#f2f4ff";
+    g.fillText((SAVE.name || "YOU") + " · #" + CONFIG.PLAYER.NUMBER, 150, 288);
+  })(prev);
+}
+
+/* ---------- share ------------------------------------------------- */
+function shareText() {
+  const L = [];
+  L.push("🏀 " + CONFIG.GAME_NAME);
+  if (G.mode === "trick") {
+    L.push((SAVE.name || "YOU") + " — " + SAVE.levels.length + "/" + LEVELS.length + " trick shots cleared");
+  } else {
+    L.push((SAVE.name || "YOU") + " — " + fmt(G.score) + " pts (" + MODE_LABEL[G.mode] + ")");
+    L.push(G.baskets + " baskets · " + G.swishes + " swishes · best combo x" + comboMultFor(G.bestCombo));
+  }
+  if (G.newBest) L.push("⭐ New personal best");
+  L.push('"' + CONFIG.TAGLINE + '"');
+  return L.join("\n");
+}
+async function copyShare() {
+  const txt = shareText();
+  let ok = false;
+  try { await navigator.clipboard.writeText(txt); ok = true; }
+  catch (e) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      ok = document.execCommand("copy");
+      ta.remove();
+    } catch (e2) { ok = false; }
+  }
+  Sound.click(); haptic(12);
+  toast(ok ? "📋" : "⚠️", ok ? "Copied to clipboard" : "Copy failed", ok ? "Paste it anywhere" : "Long-press to copy manually");
+}
+
+/* ==================================================================
+   22. WIRING
+   ================================================================== */
+$("btnPlay").onclick = () => { Sound.init(); Sound.resume(); renderBests(); showScreen("scModes"); };
+$("btnShop").onclick = () => { renderShop(); showScreen("scShop"); };
+$("btnScores").onclick = () => { renderScores(); showScreen("scScores"); };
+$("btnAch").onclick = () => { renderAch(); showScreen("scAch"); };
+document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => showScreen(b.dataset.back));
+document.querySelectorAll(".mode").forEach(b => b.onclick = () => {
+  const m = b.dataset.mode;
+  if (m === "trick") { renderLevels(); showScreen("scLevels"); }
+  else startRun(m);
+});
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+  shopTab = t.dataset.tab; renderShop(); Sound.click();
+});
+$("btnPause").onclick = pause;
+$("btnResume").onclick = resume;
+$("btnRestart").onclick = () => startRun(G.mode, G.level);
+$("btnQuit").onclick = () => { G.state = S.MENU; showHUD(false); renderBests(); showScreen("scTitle"); };
+$("btnAgain").onclick = () => {
+  if (G.mode === "trick") {
+    // after a clear, roll straight into the next locked level
+    const nxt = G.level + 1;
+    if (SAVE.levels.includes(G.level) && nxt < LEVELS.length) startRun("trick", nxt);
+    else startRun("trick", G.level);
+  } else startRun(G.mode);
+};
+$("btnMenu").onclick = () => { G.state = S.MENU; renderBests(); showScreen("scTitle"); };
+$("btnShare").onclick = copyShare;
+$("btnWipe").onclick = () => {
+  SAVE.scores = []; saveNow(); renderScores();
+  toast("🧹", "Board cleared", "Fresh start");
+};
+
+function setMute(m) {
+  SAVE.muted = m; Sound.setMuted(m); saveNow();
+  const ic = m ? "🔇" : "🔊";
+  $("btnMute").textContent = ic; $("btnMute2").textContent = ic;
+}
+$("btnMute").onclick = () => { Sound.init(); setMute(!SAVE.muted); Sound.click(); };
+$("btnMute2").onclick = () => { setMute(!SAVE.muted); Sound.click(); };
+
+const nameIn = $("nameInput");
+nameIn.value = SAVE.name || CONFIG.PLAYER.NAME;
+nameIn.oninput = () => {
+  SAVE.name = (nameIn.value || "").toUpperCase().replace(/[^A-Z0-9 ]/g, "").slice(0, 8) || "YOU";
+  nameIn.value = SAVE.name;
+  save();
+};
+nameIn.onblur = () => { if (!nameIn.value) { nameIn.value = "YOU"; SAVE.name = "YOU"; saveNow(); } };
+
+// keyboard convenience for desktop testing
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape" || e.key === "p") { G.state === S.PAUSED ? resume() : pause(); }
+  if (e.key === "m") setMute(!SAVE.muted);
+});
+
+/* ==================================================================
+   23. PWA: manifest + icon are generated at runtime so this stays a
+   genuinely single file. Drop a sw.js next to it for offline play and
+   it will be picked up automatically.
+   ================================================================== */
+function makeIcon(size) {
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  g.fillStyle = "#07070d"; g.fillRect(0, 0, size, size);
+  const rg = g.createRadialGradient(size * .5, size * .45, size * .05, size * .5, size * .5, size * .55);
+  rg.addColorStop(0, "rgba(34,230,255,.4)"); rg.addColorStop(1, "rgba(34,230,255,0)");
+  g.fillStyle = rg; g.fillRect(0, 0, size, size);
+  const s = size / 112;
+  g.save(); g.translate(size / 2, size / 2); g.scale(s, s);
+  drawBallAt(g, 0, 0, 38, .3, BALLS[0], false);
+  g.restore();
+  return c.toDataURL("image/png");
+}
+function installPWA() {
+  try {
+    const icon = makeIcon(192), icon512 = makeIcon(512);
+    const manifest = {
+      name: CONFIG.GAME_NAME, short_name: CONFIG.GAME_NAME,
+      description: CONFIG.TAGLINE,
+      start_url: ".", scope: ".", display: "fullscreen", orientation: "portrait",
+      background_color: "#07070d", theme_color: "#07070d",
+      icons: [
+        { src: icon, sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: icon512, sizes: "512x512", type: "image/png", purpose: "any maskable" }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+    const link = document.createElement("link");
+    link.rel = "manifest"; link.href = URL.createObjectURL(blob);
+    document.head.appendChild(link);
+    const ic = document.createElement("link");
+    ic.rel = "apple-touch-icon"; ic.href = icon;
+    document.head.appendChild(ic);
+  } catch (e) {}
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});   // optional, silently skipped
+  }
+}
+
+/* ==================================================================
+   24. BOOT
+   ================================================================== */
+function init() {
+  resize();
+  setMute(SAVE.muted);
+  renderBests();
+  resetBall();
+  hoop.baseX = hoop.x = hoop.tx = 320;
+  hoop.baseY = hoop.y = hoop.ty = 380;
+  G.state = S.MENU;
+
+  // daily streak
+  const st = checkDailyStreak();
+  const wrap = $("streakWrap");
+  if (st) {
+    wrap.innerHTML = '<div id="streak"><span class="f">🔥</span><span>Day ' + st.days + ' streak · +' + st.reward + ' coins</span></div>';
+    setTimeout(() => { Sound.coin(); toast("🔥", "Day " + st.days + " streak", "+" + st.reward + " coins banked"); }, 900);
+  } else if (SAVE.streak.days > 1) {
+    wrap.innerHTML = '<div id="streak"><span class="f">🔥</span><span>Day ' + SAVE.streak.days + ' streak · come back tomorrow</span></div>';
+  }
+
+  installPWA();
+  // unlock audio on the first touch anywhere
+  const unlock = () => { Sound.init(); Sound.resume(); window.removeEventListener("pointerdown", unlock); };
+  window.addEventListener("pointerdown", unlock);
+}
+init();
+</script>
+</body>
+</html>
