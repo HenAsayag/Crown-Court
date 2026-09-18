@@ -9,13 +9,31 @@ from the bottom, and you drag balls into the net and sweep bombs out over the si
 
 ## Current gameplay revision
 
+### Playable arcs and scoring QA
+
+- Incoming balls now travel from the lower right toward the central catching lane,
+  while untouched tosses remain short of the hoop.
+- Deliberate hoop-directed flicks and held releases receive a one-time ballistic
+  launch correction that accounts for gravity, drag and spin, including enough
+  descent angle to clear the near rim. The trajectory is not steered during flight.
+- Taps, reverse throws, close-range dunks and bombs remain unassisted.
+- Canvas and WebGL share the same trajectory preview and launch calculation.
+- Fixed a missed-basket case: contact separation between two balls could move a
+  ball through the opening without running the scoring check. Separation now
+  traverses the same solid colliders and scoring gate, in bounded steps.
+
+`npm test` includes cross-mode clean-entry, duplicate-score, invalid-entry,
+assisted-shot, contact-dunk and preview/release regression matrices. These are
+deterministic engine checks, not a guarantee about every possible player gesture.
+See [the QA report](docs/gameplay-qa.md) for coverage and limitations.
+
 ### WebGL renderer
 
 WebGL is now the default renderer for the 2D court, hoop layers, balls, bombs,
 crowns, trails and particles. Sprites are GPU textures; circles, rings and glows
 are shader-drawn. Small offscreen canvases prepare masked sprites and text only:
 the game does not render a full Canvas frame and copy it into WebGL.
-Menus remain accessible HTML/CSS. Physics, scoring and touch controls are unchanged.
+Menus remain accessible HTML/CSS. Both renderers share one physics and scoring engine.
 
 The home screen reports `WEBGL · GPU`. Unsupported devices automatically use the
 original Canvas renderer (`CANVAS · COMPATIBILITY MODE`). For comparison, open

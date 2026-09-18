@@ -1,7 +1,7 @@
 /* CROWN COURT service worker - offline play + PWA install.
    Cache-first with a background refresh, so a new build is picked up
    on the next launch. */
-const CACHE = "crowncourt-v5-webgl";
+const CACHE = "crowncourt-v6-playable-arcs";
 const CORE = [
   "./", "./index.html", "./arena.css", "./art.js", "./hoop-art.js", "./game.js", "./mobile.js", "./manifest.webmanifest",
   "./webgl-renderer.js", "./webgl-scene.js",

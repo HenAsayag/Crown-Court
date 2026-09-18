@@ -61,20 +61,7 @@ function webGLGrade() {
 }
 
 function drawWebGLGuide(r) {
-  const o=stroke.grab;
-  if (!o || o.kind!=='ball' || G.state!==ST.PLAY) return;
-  const v=strokeVelocity(), sw=CONFIG.SWIPE;
-  if(nowSec()-(stroke.pts.at(-1)?.t || 0)>.12 || v.sp<sw.RELEASE_MIN)return;
-  const power=Math.min(v.sp*sw.RELEASE_POWER*equippedBall().power,sw.MAX_IMPULSE);
-  let x=o.x,y=o.y,vx=v.vx/v.sp*power,vy=v.vy/v.sp*power-power*sw.LIFT;
-  const b=boardRect();
-  for(let i=0;i<24;i++){
-    vy+=CONFIG.PHYSICS.GRAVITY*o.grav*.025;x+=vx*.025;y+=vy*.025;
-    if(y>H || x<o.r || x>W-o.r)break;
-    if(x+o.r>b.x && x-o.r<b.x+b.w && y+o.r>b.y && y-o.r<b.y+b.h)break;
-    if([-1,1].some(s=>Math.hypot(x-hoop.x-s*rimRX(),y-hoop.y-hoop.flex)<o.r+CONFIG.HOOP.LIP_R))break;
-    r.ellipse(x,y,3.5-i*.07,3.5-i*.07,'#ffe79a',(1-i/24)*.8);
-  }
+  for(const p of shotGuidePoints())r.ellipse(p.x,p.y,p.r,p.r,'#ffe79a',p.alpha);
 }
 
 function drawWebGLTrail(r,o) {

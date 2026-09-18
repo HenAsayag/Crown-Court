@@ -197,15 +197,15 @@ const CONFIG = {
   },
 
   /* ---------- SHOT ASSIST -------------------------------------------
-     A throw that is roughly on line gets gently steered home. This is
-     what makes the original feel generous: you aim, and near misses
-     become makes. Set STRENGTH to 0 for pure, unassisted physics.   */
+     A hoop-directed swipe receives a forgiving ballistic launch arc.
+     Once released, normal physics applies: no mid-flight steering.
+     Set BLEND to 0 for fully manual launch velocities.            */
   ASSIST: {
-    STRENGTH: 0,            // ballistic throws: release speed determines the shot
-    MAX_ANGLE: 0.70,        // radians of aim error it will still correct (40 deg)
-    MIN_SPEED: 650,         // only real throws, not taps
-    RANGE: 1000,            // only once the ball is within this of the rim
-    STOP_DIST: 70           // stop steering this close, so it drops naturally
+    MAX_ANGLE: 1.0,         // a deliberate hoop-directed swipe, not a reverse throw
+    MIN_SPEED: 260, RANGE: 1350, STOP_DIST: 180,
+    BLEND: .96,             // forgiving launch correction; no steering after release
+    FLIGHT_MIN: .65, FLIGHT_MAX: 1.65,
+    ENTRY_SLOPE: 1.15       // descend steeply enough to clear the near rim with the whole ball
   },
 
   /* ---------- SKILLS ------------------------------------------------
@@ -788,10 +788,16 @@ function throwObject(forceKind) {
     if (!bombSpotIsSafe(x)) kind = "ball";
   }
 
-  // Rising tosses from the lower right. They stay in the catching lane until the player swipes.
+  // Bring balls toward the middle, but land short of the rim without a player swipe.
   const grav=kind==='ball'?equippedBall().grav:kind==='crown'?.82:1;
   const vy=-Math.sqrt(2*CONFIG.PHYSICS.GRAVITY*grav*(H+60-rand(S.APEX_MIN,S.APEX_MAX)));
-  const vx=rand(S.VX_MIN,S.VX_MAX);
+  let vx=rand(S.VX_MIN,S.VX_MAX);
+  if(kind==='ball') {
+    const g=CONFIG.PHYSICS.GRAVITY*grav;
+    const flight=(-vy+Math.sqrt(vy*vy-2*g*(H+60-hoop.y)))/g;
+    const targetX=hoop.x+rimRX()+CONFIG.PHYSICS.BALL_R*equippedBall().size+rand(100,180);
+    vx=(targetX-x)/flight;
+  }
   const o = makeObject(kind, x, H + 60, vx, vy);
   objs.push(o);
   Sound.whoosh(clamp(Math.abs(vy) / 1400, .2, 1));
@@ -830,6 +836,18 @@ function makeObject(kind, x, y, vx, vy) {
 /* ==================================================================
    8. PHYSICS
    ================================================================== */
+// Shared by actual flight and the preview, including active helper forces.
+function applyFlightForces(o,h,magnet) {
+  const ph=CONFIG.PHYSICS;
+  o.vy+=ph.GRAVITY*(o.grav||1)*h;o.vx+=o.spin*ph.MAGNUS*h;
+  if(magnet && o.kind!=='bomb' && o.vy>-200) {
+    const dx=hoop.x-o.x,dy=hoop.y-90-o.y,d=Math.max(60,Math.hypot(dx,dy));
+    o.vx+=dx/d*900*h;o.vy+=dy/d*620*h;
+  }
+  const drag=1-ph.AIR_DRAG*h;o.vx*=drag;o.vy*=drag;o.spin*=1-ph.SPIN_DECAY*h;
+  const speed=Math.hypot(o.vx,o.vy);
+  if(speed>ph.MAX_SPEED){const factor=ph.MAX_SPEED/speed;o.vx*=factor;o.vy*=factor;}
+}
 function stepObjects(dt) {
   const PH = CONFIG.PHYSICS;
   const magnet = G.helperActive === "magnet";
@@ -853,35 +871,7 @@ function stepObjects(dt) {
     const SUB = Math.max(1, Math.ceil(PH.MAX_SPEED * dt / PH.STEP_DISTANCE)), h = dt / SUB;
     for (let s = 0; s < SUB && !o.held; s++) {   // a held object follows the finger
 
-      o.vy += PH.GRAVITY * (o.grav || 1) * h;
-      o.vx += o.spin * PH.MAGNUS * h;              // spin curves the flight
-      // shot assist: steer a well-aimed throw toward the rim
-      if (o.assist && o.kind === "ball") {
-        const A = CONFIG.ASSIST;
-        const tx = hoop.x, ty = hoop.y - 40;
-        const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
-        if (d > A.STOP_DIST && d < A.RANGE) {
-          const err = Math.abs(angDelta(Math.atan2(o.vy, o.vx), Math.atan2(dy, dx)));
-          if (err < A.MAX_ANGLE) {
-            const k = 1 - err / A.MAX_ANGLE;
-            o.vx += (dx / d) * A.STRENGTH * k * h;
-            o.vy += (dy / d) * A.STRENGTH * k * h;
-          }
-        }
-      }
-      if (magnet && o.kind !== "bomb" && o.vy > -200) {
-        // Magnet: a gentle steering force toward the rim
-        const dx = hoop.x - o.x, dy = (hoop.y - 90) - o.y;
-        const d = Math.max(60, Math.hypot(dx, dy));
-        o.vx += (dx / d) * 900 * h;
-        o.vy += (dy / d) * 620 * h;
-      }
-      const k = 1 - PH.AIR_DRAG * h;
-      o.vx *= k; o.vy *= k;
-      o.spin *= 1 - PH.SPIN_DECAY * h;
-
-      const sp = Math.hypot(o.vx, o.vy);
-      if (sp > PH.MAX_SPEED) { const f = PH.MAX_SPEED / sp; o.vx *= f; o.vy *= f; }
+      applyFlightForces(o,h,magnet);
 
       const px = o.x, py = o.y;
       o.x += o.vx * h;
@@ -1019,17 +1009,33 @@ function checkOutOfPlay(o) {
 }
 
 /* ball-to-ball contact, which is what makes an alley-oop possible */
+// Separation is motion too: resolve solid geometry and the scoring gate along it.
+function moveForContact(o,dx,dy) {
+  const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/CONFIG.PHYSICS.STEP_DISTANCE));
+  for(let i=0;i<steps && o.alive && !o.scored;i++) {
+    const px=o.x,py=o.y;o.x+=dx/steps;o.y+=dy/steps;
+    collideHoop(o);checkThroughRim(o,py,px);
+  }
+}
 function collideObjects(dt) {
   for (let i = 0; i < objs.length; i++) {
     const a = objs[i]; if (!a.alive || a.scored || a.held) continue;
     for (let j = i + 1; j < objs.length; j++) {
+      if(!a.alive || a.scored)break;
       const b = objs[j]; if (!b.alive || b.scored || b.held) continue;
       const dx = b.x - a.x, dy = b.y - a.y, min = a.r + b.r;
       const d = Math.hypot(dx, dy);
       if (d >= min || d < .0001) continue;
       const nx = dx / d, ny = dy / d, overlap = min - d;
-      a.x -= nx * overlap * .5; a.y -= ny * overlap * .5;
-      b.x += nx * overlap * .5; b.y += ny * overlap * .5;
+      const approaching=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny<=0;
+      // Scoring can happen during separation: preserve contact credit first.
+      if(approaching && a.kind==='ball' && b.kind==='ball') {
+        if(G.elapsed-a.lastSwipeT<.8){b.alleyOop=true;b.lastSwipeY=Math.min(b.lastSwipeY,b.y);}
+        if(G.elapsed-b.lastSwipeT<.8){a.alleyOop=true;a.lastSwipeY=Math.min(a.lastSwipeY,a.y);}
+      }
+      moveForContact(a,-nx*overlap*.5,-ny*overlap*.5);
+      moveForContact(b,nx*overlap*.5,ny*overlap*.5);
+      if(!a.alive || !b.alive || a.scored || b.scored)continue;
       const rvx = b.vx - a.vx, rvy = b.vy - a.vy;
       const vn = rvx * nx + rvy * ny;
       if (vn > 0) continue;
@@ -1039,12 +1045,6 @@ function collideObjects(dt) {
       Sound.board();
       burst((a.x + b.x) / 2, (a.y + b.y) / 2, 5, { c:["#fff","#ffd23f"], spMin:60, spMax:220,
         rMin:2, rMax:4, lifeMin:.12, lifeMax:.3, g:600 });
-      // freshly-swiped ball strikes another -> the struck one is an oop candidate
-      const t = G.elapsed;
-      if (a.kind === "ball" && b.kind === "ball") {
-        if (t - a.lastSwipeT < 0.8 && !a.scored) { b.alleyOop = true; b.lastSwipeY = Math.min(b.lastSwipeY, b.y); }
-        if (t - b.lastSwipeT < 0.8 && !b.scored) { a.alleyOop = true; a.lastSwipeY = Math.min(a.lastSwipeY, a.y); }
-      }
     }
   }
 }
@@ -1183,6 +1183,63 @@ function manualFinish(o) {
   scoreDunk(o);
 }
 
+function releaseSpin(o) {
+  const sw=CONFIG.SWIPE;
+  return clamp(o.spin+clamp(stroke.turn,-3,3)*sw.CURVE_SPIN*.35,-sw.MAX_SPIN,sw.MAX_SPIN);
+}
+
+// Solve the launch once. The same gravity, drag and spin remain in charge in flight.
+function shotVelocity(o,v,powerScale,inherited=0,spin=o.spin) {
+  const sw=CONFIG.SWIPE,A=CONFIG.ASSIST,ph=CONFIG.PHYSICS;
+  if(!v.sp)return {vx:0,vy:0};
+  const power=o.kind==='ball'?equippedBall().power:1;
+  const impulse=Math.min(v.sp*powerScale*power,sw.MAX_IMPULSE);
+  const raw={vx:lerp(v.vx/v.sp*impulse,o.vx,inherited),
+    vy:lerp(v.vy/v.sp*impulse-impulse*sw.LIFT,o.vy,inherited)};
+  const dx=hoop.x-o.x,dy=hoop.y+hoop.flex-o.y;
+  const distance=Math.hypot(dx,dy);
+  const angle=Math.abs(angDelta(Math.atan2(v.vy,v.vx),Math.atan2(dy-90,dx)));
+  if(o.kind!=='ball' || impulse<A.MIN_SPEED || distance<A.STOP_DIST || distance>A.RANGE ||
+    dx*v.vx<=0 || v.vy>v.sp*.5 || angle>A.MAX_ANGLE)return raw;
+  const rimClearanceTime=Math.sqrt(Math.max(0,2*(A.ENTRY_SLOPE*Math.abs(dx)-dy)/(ph.GRAVITY*o.grav)));
+  const time=clamp(Math.max(rimClearanceTime,Math.abs(dx)/Math.max(350,Math.abs(raw.vx))),A.FLIGHT_MIN,A.FLIGHT_MAX);
+  const steps=Math.ceil(time*240),h=time/steps,k=1-ph.AIR_DRAG*h;
+  let coefficient=1,travel=0,biasX=0,biasY=0,velocityX=0,velocityY=0;
+  for(let i=0;i<steps;i++) {
+    coefficient*=k;travel+=coefficient*h;
+    velocityX=(velocityX+spin*ph.MAGNUS*h)*k;
+    velocityY=(velocityY+ph.GRAVITY*o.grav*h)*k;
+    spin*=1-ph.SPIN_DECAY*h;
+    biasX+=velocityX*h;biasY+=velocityY*h;
+  }
+  const target={vx:(dx-biasX)/travel,vy:(dy-biasY)/travel};
+  // Only an arc that arrives from above is eligible; upward entries stay unassisted.
+  if(target.vy*coefficient+velocityY<100 || Math.hypot(target.vx,target.vy)>sw.MAX_IMPULSE)return raw;
+  return {vx:lerp(raw.vx,target.vx,A.BLEND),vy:lerp(raw.vy,target.vy,A.BLEND)};
+}
+
+function shotGuidePoints() {
+  const o=stroke.grab,sw=CONFIG.SWIPE;
+  if(!o || o.kind!=='ball' || G.state!==ST.PLAY)return [];
+  const v=strokeVelocity();
+  if(nowSec()-(stroke.pts.at(-1)?.t || 0)>.12 || v.sp<sw.RELEASE_MIN)return [];
+  const spin=releaseSpin(o),launch=shotVelocity(o,v,sw.RELEASE_POWER,0,spin);
+  const projected={x:o.x,y:o.y,spin,grav:o.grav,kind:o.kind,...launch};
+  const b=boardRect(),points=[],h=.025/6;
+  for(let i=0;i<24;i++) {
+    for(let j=0;j<6;j++) {
+      applyFlightForces(projected,h,G.helperActive==='magnet');
+      projected.x+=projected.vx*h;projected.y+=projected.vy*h;
+      const {x,y}=projected;
+      if(y>H || x<o.r || x>W-o.r)return points;
+      if(x+o.r>b.x && x-o.r<b.x+b.w && y+o.r>b.y && y-o.r<b.y+b.h)return points;
+      if([-1,1].some(s=>Math.hypot(x-hoop.x-s*rimRX(),y-hoop.y-hoop.flex)<o.r+CONFIG.HOOP.LIP_R))return points;
+    }
+    points.push({x:projected.x,y:projected.y,r:3.5-i*.07,alpha:(1-i/24)*.8});
+  }
+  return points;
+}
+
 function releaseGrab() {
   const o = stroke.grab;
   stroke.grab = null;
@@ -1201,9 +1258,9 @@ function releaseGrab() {
   const imp = Math.min(sp * SW.RELEASE_POWER * (o.kind === "ball" ? equippedBall().power : 1),
                        SW.MAX_IMPULSE);
   const ux = v.vx / sp, uy = v.vy / sp;
-  o.vx = ux * imp;
-  o.vy = uy * imp - imp * SW.LIFT;
-  o.spin = clamp(o.spin + clamp(stroke.turn, -3, 3) * SW.CURVE_SPIN * .35, -SW.MAX_SPIN, SW.MAX_SPIN);
+  o.spin = releaseSpin(o);
+  const launch=shotVelocity(o,v,SW.RELEASE_POWER);
+  o.vx=launch.vx;o.vy=launch.vy;
   o.trailT = .6;
 
   if (o.kind === "ball") {
@@ -1315,19 +1372,16 @@ const styleLevel = o => Math.min(CONFIG.STYLE.MAX_LEVEL,
 const styleMult = o => 1 + styleLevel(o) * CONFIG.STYLE.MULT_PER_LEVEL;
 
 function applySwipe(o, hx, hy, v) {
-  const SW = CONFIG.SWIPE, bm = equippedBall();
-  const power = o.kind === "ball" ? bm.power : 1;
-  const imp = Math.min(v.sp * SW.POWER * power, SW.MAX_IMPULSE);
+  const SW = CONFIG.SWIPE;
   const ux = v.vx / v.sp, uy = v.vy / v.sp;
-
-  o.vx = lerp(o.vx, ux * imp, .88);
-  o.vy = lerp(o.vy, uy * imp - imp * SW.LIFT, .88);
 
   const offx = o.x - hx, offy = o.y - hy;
   const cross = ux * offy - uy * offx;
   let spin = cross * SW.OFFSET_SPIN * (v.sp / 900);
   spin += clamp(stroke.turn, -3, 3) * SW.CURVE_SPIN * .35;
   o.spin = clamp(o.spin + spin, -SW.MAX_SPIN, SW.MAX_SPIN);
+  const launch=shotVelocity(o,v,SW.POWER,.12);
+  o.vx=launch.vx;o.vy=launch.vy;
 
   o.hitCool = SW.COOLDOWN;
   if (v.sp > CONFIG.JUICE.TRAIL_MIN_SPEED) o.trailT = .55;
@@ -1901,20 +1955,9 @@ function drawHoopFront() {
 
 /* A short ballistic preview shows direction and power without steering the released ball. */
 function drawShotGuide() {
-  const o=stroke.grab; if(!o || o.kind!=='ball' || G.state!==ST.PLAY)return;
-  const v=strokeVelocity(), sw=CONFIG.SWIPE;
-  if(nowSec()-(stroke.pts.at(-1)?.t || 0)>.12)return;
-  if(v.sp<sw.RELEASE_MIN)return;
-  const power=Math.min(v.sp*sw.RELEASE_POWER*equippedBall().power,sw.MAX_IMPULSE);
-  let x=o.x,y=o.y,vx=v.vx/v.sp*power,vy=v.vy/v.sp*power-power*sw.LIFT;
-  const b=boardRect();
   ctx.save();
-  for(let i=0;i<24;i++){
-    vy+=CONFIG.PHYSICS.GRAVITY*o.grav*.025;x+=vx*.025;y+=vy*.025;
-    if(y>H || x<o.r || x>W-o.r)break;
-    if(x+o.r>b.x && x-o.r<b.x+b.w && y+o.r>b.y && y-o.r<b.y+b.h)break;
-    if([-1,1].some(s=>Math.hypot(x-hoop.x-s*rimRX(),y-hoop.y-hoop.flex)<o.r+CONFIG.HOOP.LIP_R))break;
-    ctx.globalAlpha=(1-i/24)*.8;ctx.fillStyle='#ffe79a';ctx.beginPath();ctx.arc(x,y,3.5-i*.07,0,TAU);ctx.fill();
+  for(const p of shotGuidePoints()){
+    ctx.globalAlpha=p.alpha;ctx.fillStyle='#ffe79a';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,TAU);ctx.fill();
   }
   ctx.restore();
 }

@@ -152,3 +152,101 @@ test('all ball variants rise from the right into a catchable arc without auto-sc
     assert.ok(apex>100 && apex<340,'catchable apex '+apex);assert.equal(G.dunks,0);
   }`);
 });
+
+test('a ball nudged down through the opening by another ball scores once',()=>{
+  const run=engine();
+  run(`const lower=makeObject('ball',hoop.x,hoop.y-2,0,100);
+    const upper=makeObject('ball',hoop.x,hoop.y-60,0,0);objs.push(lower,upper);
+    collideObjects(.016);assert.equal(G.dunks,1);assert.ok(lower.scored);
+    collideObjects(.016);assert.equal(G.dunks,1);`);
+});
+
+test('incoming balls reach the central catching lane on wide screens',()=>{
+  const run=engine();
+  run(`for(const width of [1280,1728]){
+    W=width;startRun('time');const o=throwObject('ball');
+    while(o.vy<0 && o.alive)stepObjects(1/120);
+    assert.ok(o.x<W*.70,'apex stayed too far right: '+o.x+' / '+W);
+    assert.ok(o.x>hoop.x+rimRX()+o.r,'toss should still need a player shot');
+  }`);
+});
+
+test('a normal leftward flick from the catching lane reaches the basket',()=>{
+  const run=engine();
+  run(`const o=makeObject('ball',820,400,0,0);o.spin=0;objs.push(o);
+    applySwipe(o,o.x,o.y,{vx:-900,vy:-180,sp:Math.hypot(900,180)});
+    for(let i=0;i<300 && o.alive && !o.scored;i++)stepObjects(1/120);
+    assert.equal(G.dunks,1,'ordinary hoop-directed flick should be playable');`);
+});
+
+test('QA: clean entries score exactly once across modes, skins, frame rates and speeds',()=>{
+  const run=engine();
+  run(`let count=0;
+    for(const mode of ['time','arcade','sudden'])for(const ball of BALLS)
+    for(const fps of [20,60,120])for(const speed of [180,900,2200])for(const offset of [-22,0,22]){
+      SAVE.ball=ball.id;startRun(mode);G.spawnT=999;
+      const o=makeObject('ball',hoop.x+offset,hoop.y-24,0,speed);o.spin=0;o.swiped=true;objs.push(o);
+      for(let i=0;i<fps*2 && o.alive && !o.scored;i++)stepObjects(1/fps);
+      assert.equal(G.dunks,1,JSON.stringify({mode,ball:ball.id,fps,speed,offset}));
+      const score=G.score;checkThroughRim(o,hoop.y-1);scoreDunk(o);
+      assert.equal(G.dunks,1);assert.equal(G.score,score);count++;
+    }
+    assert.equal(count,3*BALLS.length*3*3*3);`);
+});
+
+test('QA: hoop-directed flicks remain playable across court widths, skins and frame rates',()=>{
+  const run=engine();
+  run(`let misses=[];
+    for(const width of [936,1280,1728])for(const ball of BALLS)for(const fps of [20,60,120])
+    for(const speed of [600,900,1200]){
+      W=width;SAVE.ball=ball.id;startRun('time');G.spawnT=999;
+      const o=makeObject('ball',W*.68,400,0,0);o.spin=0;objs.push(o);
+      applySwipe(o,o.x,o.y,{vx:-speed,vy:-speed*.2,sp:Math.hypot(speed,speed*.2)});
+      for(let i=0;i<fps*3 && o.alive && !o.scored;i++)stepObjects(1/fps);
+      if(G.dunks!==1)misses.push({width,ball:ball.id,fps,speed});
+    }
+    assert.deepEqual(misses,[]);`);
+});
+
+test('QA: upward entry, outside entry and a ball already below the rim do not score',()=>{
+  const run=engine();
+  run(`for(const mode of ['time','arcade','sudden'])for(const ball of BALLS){
+    SAVE.ball=ball.id;startRun(mode);
+    const up=makeObject('ball',hoop.x,hoop.y-5,0,-400);checkThroughRim(up,hoop.y+5);
+    const outside=makeObject('ball',hoop.x+rimRX()+60,hoop.y+5,0,400);checkThroughRim(outside,hoop.y-5);
+    const below=makeObject('ball',hoop.x,hoop.y+50,0,400);checkThroughRim(below,hoop.y+20);
+    assert.equal(G.dunks,0);assert.equal(G.score,0);
+  }`);
+});
+
+test('QA: taps, reverse throws, near-rim dunks and bomb swipes are not auto-aimed',()=>{
+  const run=engine();
+  run(`for(const [kind,x,y,vx,vy] of [['ball',820,400,900,-180],['ball',820,400,-100,0],
+    ['ball',hoop.x+50,hoop.y-90,-400,700],['bomb',820,400,-900,-180]]){
+    const o=makeObject(kind,x,y,0,0),sp=Math.hypot(vx,vy),v={vx,vy,sp};
+    const launch=shotVelocity(o,v,CONFIG.SWIPE.POWER);
+    const impulse=Math.min(sp*CONFIG.SWIPE.POWER*(kind==='ball'?equippedBall().power:1),CONFIG.SWIPE.MAX_IMPULSE);
+    assert.ok(Math.abs(launch.vx-vx/sp*impulse)<.00001);
+    assert.ok(Math.abs(launch.vy-(vy/sp*impulse-impulse*CONFIG.SWIPE.LIFT))<.00001);
+  }`);
+});
+
+test('QA: the shared shot guide matches the actual held release trajectory',()=>{
+  for(const helper of [null,'magnet']){
+  const run=engine();
+  run(`G.helperActive=${JSON.stringify(helper)};
+    const o=makeObject('ball',820,400,0,0);objs.push(o);grabObject(o,{x:o.x,y:o.y});
+    stroke.pts=[{x:856,y:407.2,t:.96},{x:820,y:400,t:1}];stroke.turn=.3;
+    const points=shotGuidePoints();assert.ok(points.length>8);releaseGrab();
+    for(const p of points){stepObjects(.025);assert.ok(Math.hypot(o.x-p.x,o.y-p.y)<.01);}
+  `);
+  }
+});
+
+test('QA: contact-completed baskets preserve the alley-oop bonus',()=>{
+  const run=engine();
+  run(`const lower=makeObject('ball',hoop.x,hoop.y-2,0,100);
+    const upper=makeObject('ball',hoop.x,hoop.y-60,0,800);upper.lastSwipeT=G.elapsed;
+    objs.push(lower,upper);collideObjects(.016);
+    assert.equal(G.dunks,1);assert.ok(lower.alleyOop);assert.equal(G.trickCounts.alley,1);`);
+});
