@@ -25,6 +25,121 @@ export function engine(gpu=null){
   vm.runInContext('startRun("time"); G.spawnT=999;',context);
   return code=>vm.runInContext(code,context);
 }
+
+test('waves run at 70% of the old frequency throughout the difficulty ramp',()=>{
+  engine()(`
+    for(const [difficulty,oldInterval] of [[0,1.08],[.5,.81],[1,.54]]) {
+      G.difficulty=difficulty;
+      for(const overtime of [false,true]) {
+        G.overtime=overtime;
+        const previous=oldInterval*(overtime?.72:1);
+        assert.ok(Math.abs(previous/spawnInterval()-.7)<1e-9);
+      }
+    }
+  `);
+});
+
+test('held upward tosses are gentler and bounded while near-hoop flicks retain power',()=>{
+  engine()(`
+    const o=makeObject('ball',hoop.x,hoop.y+100,0,0);o.spin=0;
+    const v={vx:0,vy:-1000,sp:1000};
+    const soft=heldLaunch(o,v),flick=shotVelocity(o,v,CONFIG.SWIPE.POWER);
+    assert.ok(soft.vy < -500 && soft.vy > -550);
+    assert.ok(Math.abs(soft.vy)<Math.abs(flick.vy)*.7);
+    const fast=heldLaunch(o,{vx:0,vy:-10000,sp:10000});
+    assert.ok(Math.abs(fast.vy)<=1093);
+  `);
+});
+
+for(const [id,start,path] of [
+  ['crossover',[800,300],[[920,300],[680,300],[920,300]]],
+  ['doublepump',[800,400],[[800,280],[800,430],[800,280]]],
+  ['orbit',[900,300],Array.from({length:48},(_,i)=>[800+100*Math.cos((i+1)*Math.PI/24),300+100*Math.sin((i+1)*Math.PI/24)])]
+]) test(id+' rewards an actual carried gesture and a downward finish exactly once',()=>{
+  engine()(`
+    const o=makeObject('ball',${start[0]},${start[1]},0,0);objs.push(o);
+    grabObject(o,{x:o.x,y:o.y});
+    for(const [x,y] of ${JSON.stringify(path)})dragTo({x,y});
+    assert.equal(o.handTricks['${id}'],true);
+    assert.equal(G.score,0);
+    dragTo({x:hoop.x,y:hoop.y-80});dragTo({x:hoop.x,y:hoop.y+30});
+    assert.equal(G.dunks,1);assert.equal(G.trickCounts['${id}'],1);
+    assert.ok(G.score>CONFIG.SCORE.DUNK);
+    const points=G.score;scoreDunk(o);assert.equal(G.score,points);
+    assert.equal(pickGrab({x:o.x,y:o.y}),null);
+  `);
+});
+
+test('finger jitter and pointer circles blocked by the board earn no handling bonus',()=>{
+  engine()(`
+    const o=makeObject('ball',800,300,0,0);objs.push(o);grabObject(o,{x:o.x,y:o.y});
+    for(let i=0;i<120;i++)dragTo({x:800+5*Math.cos(i),y:300+5*Math.sin(i)});
+    assert.equal(Object.keys(o.handTricks).length,0);
+    const b=boardRect();o.x=b.x+b.w+o.r+1;o.y=b.y+80;
+    grabObject(o,{x:o.x,y:o.y});
+    for(let i=0;i<60;i++)dragTo({x:b.x-200+100*Math.cos(i),y:o.y+5*Math.sin(i)});
+    assert.equal(Object.keys(o.handTricks).length,0);
+  `);
+});
+
+test('retraced straight lines are not a 360, but a circle after repositioning is',()=>{
+  engine()(`
+    const o=makeObject('ball',800,300,0,0);objs.push(o);grabObject(o,{x:o.x,y:o.y});
+    for(const [x,y] of [[1000,300],[800,300],[800,100],[800,300]])dragTo({x,y});
+    assert.ok(!o.handTricks.orbit);
+    o.x=1050;o.y=300;grabObject(o,{x:o.x,y:o.y});dragTo({x:900,y:300});
+    for(let i=1;i<=48;i++)dragTo({x:800+100*Math.cos(i*Math.PI/24),y:300+100*Math.sin(i*Math.PI/24)});
+    assert.equal(o.handTricks.orbit,true);
+  `);
+});
+
+test('self alley-oop requires real airtime and an elevated recatch before scoring',()=>{
+  engine()(`
+    const o=makeObject('ball',hoop.x,hoop.y+100,0,0);o.spin=0;objs.push(o);
+    grabObject(o,{x:o.x,y:o.y});
+    stroke.pts=[{x:o.x,y:o.y+60,t:.94},{x:o.x,y:o.y,t:1}];releaseGrab();
+    for(let i=0;i<18;i++){G.elapsed+=1/60;stepObjects(1/60);}
+    assert.equal(G.dunks,0);assert.ok(o.y<hoop.y+10);
+    grabObject(o,{x:o.x,y:o.y});assert.equal(o.handTricks.selfoop,true);
+    dragTo({x:hoop.x,y:hoop.y-60});dragTo({x:hoop.x,y:hoop.y+20});
+    assert.equal(G.trickCounts.selfoop,1);assert.equal(G.dunks,1);
+  `);
+});
+
+test('immediate recatches and ordinary falling catches are not self alley-oops',()=>{
+  engine()(`
+    const o=makeObject('ball',800,500,0,0);objs.push(o);grabObject(o,{x:o.x,y:o.y});
+    stroke.pts=[{x:800,y:560,t:.94},{x:800,y:500,t:1}];releaseGrab();
+    grabObject(o,{x:o.x,y:o.y});assert.ok(!o.handTricks.selfoop);
+    o.held=false;G.elapsed+=1;o.y=300;
+    grabObject(o,{x:o.x,y:o.y});assert.ok(!o.handTricks.selfoop);
+  `);
+});
+
+test('a separate flick invalidates a pending self alley-oop release',()=>{
+  engine()(`
+    const o=makeObject('ball',800,500,0,0);objs.push(o);grabObject(o,{x:o.x,y:o.y});
+    stroke.pts=[{x:800,y:560,t:.94},{x:800,y:500,t:1}];releaseGrab();
+    assert.ok(o.toss);G.elapsed+=1;o.y=550;
+    applySwipe(o,o.x,o.y,{vx:0,vy:-1000,sp:1000});
+    G.elapsed+=.3;o.y=300;grabObject(o,{x:o.x,y:o.y});
+    assert.ok(!o.handTricks.selfoop);
+  `);
+});
+
+test('score and explosion haptics are distinct, protected from taps, and optional',()=>{
+  engine()(`
+    const pulses=[];navigator.vibrate=p=>{pulses.push(p);return true;};SAVE.muted=false;
+    const o=makeObject('ball',hoop.x,hoop.y,0,300);o.manual=true;scoreDunk(o);
+    assert.equal(pulses.at(-1),28);haptic(6);assert.equal(pulses.length,1);
+    const bomb=makeObject('bomb',800,300,0,0);detonate(bomb,true);
+    assert.equal(JSON.stringify(pulses.at(-1)),'[120,45,160]');
+    haptic(28,1);assert.equal(pulses.length,2);
+    SAVE.muted=true;haptic(90,2);assert.equal(pulses.length,2);
+    SAVE.muted=false;delete navigator.vibrate;haptic(90,2);
+    navigator.vibrate=()=>{throw Error('unsupported');};haptic(90,2);
+  `);
+});
 test('WebGL scene keeps the ball between the backboard and front net without changing score',()=>{
   const run=engine();
   run(`

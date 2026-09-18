@@ -71,9 +71,17 @@ const CONFIG = {
 
     /* --- grab & drag: press on a ball and it follows your finger --- */
     GRAB_RADIUS: 26,        // extra reach when you PRESS on something
-    GRAB_MAX_TIME: 1.8,     // enough time for a deliberate sweeping dunk
-    RELEASE_POWER: 0.85,    // same response for a flick and a held release
+    GRAB_MAX_TIME: 3.5,     // time to perform a deliberate handling trick
+    RELEASE_POWER: 0.52,    // softer held tosses; quick flicks retain POWER
+    RELEASE_MAX: 1050,      // cap raw held throws, not assisted long-range arcs
     RELEASE_MIN: 120        // let go slower than this and it simply drops
+  },
+
+  HANDLING: {
+    SAMPLE_DISTANCE: 10, HISTORY: 256, STROKE_DISTANCE: 90,
+    LOOP_POINTS: 12, LOOP_CLOSE: 35, LOOP_SPAN: 120, LOOP_TURN: 5.5,
+    LOOP_AREA_RATIO: .4, // rejects retraced lines and narrow slivers
+    CATCH_AIRTIME: .18, CATCH_RISE: 90, TOSS_SPEED: 220
   },
 
   /* ---------- HOOP -------------------------------------------------
@@ -97,6 +105,7 @@ const CONFIG = {
 
   /* ---------- SPAWNER ---------------------------------------------- */
   SPAWN: {
+    RATE: 0.70,            // 70% of the previous wave frequency, including doubles
     FIRST_DELAY: 0.85,
     INTERVAL: 1.08,         // seconds between throws at difficulty 0
     INTERVAL_MIN: 0.54,     // enough room to read and catch each toss
@@ -186,7 +195,7 @@ const CONFIG = {
     PARTICLE_CAP: 280,
     BURST_ON_DUNK: 1,
     POP_RISE: 58, POP_TIME: 1.10,
-    HAPTIC_DUNK: 16, HAPTIC_TRICK: [12, 26, 14], HAPTIC_BOMB: 90,
+    HAPTIC_DUNK: 28, HAPTIC_TRICK: [25, 35, 45], HAPTIC_BOMB: [120, 45, 160],
     RIM_FLEX: 170,          // impulse into the rim spring on contact (not px:
                             //  the spring turns it into roughly a 12px dip)
     NET_WHIP: 640,          // impulse into the net spring on a make, which
@@ -243,11 +252,23 @@ const CONFIG = {
    CONTENT TABLES
    ================================================================== */
 
-/* ---- the 12 tricks ------------------------------------------------
+/* ---- dunk tricks --------------------------------------------------
    `test` runs at the moment a ball drops through the rim. Every trick
    that passes is awarded; the most valuable one gets the callout.
    `teach` is the card shown when a rank up introduces it.          */
 const TRICKS = [
+  { id:"crossover", name:"CROSSOVER", pts:170, colour:"#7ee8fa", manual:true,
+    teach:"Carry the ball left-right-left (or right-left-right), with three broad strokes, then dunk.",
+    test:s=>s.handTricks?.crossover },
+  { id:"doublepump", name:"DOUBLE PUMP", pts:190, colour:"#ff9b2f", manual:true,
+    teach:"Carry the ball up, down, then up again with three broad strokes before the finish.",
+    test:s=>s.handTricks?.doublepump },
+  { id:"orbit", name:"360 JAM", pts:230, colour:"#b98cff", manual:true,
+    teach:"Carry the ball in a full, wide circle, returning to its starting point, then dunk. Unlike Windmill, move the ball itself.",
+    test:s=>s.handTricks?.orbit },
+  { id:"selfoop", name:"SELF ALLEY-OOP", pts:210, colour:"#8ef5a0", manual:true,
+    teach:"Release an upward toss, catch the same ball at least one ball-width higher after some airtime, then dunk.",
+    test:s=>s.handTricks?.selfoop },
   { id:"swish",    name:"SWISH",        pts:60,  colour:"#8ef5a0",
     teach:"Straight through the middle without touching iron. The cleanest points in the game.",
     test:(s)=> s.hitRim===0 && s.hitBoard===0 },
@@ -554,9 +575,17 @@ const Sound = (() => {
     buy() { tone(880, .1, "triangle", .16, 1320); tone(1320, .13, "triangle", .12, 1760, .07); }
   };
 })();
-function haptic(p) {
+let hapticUntil = 0, hapticPriority = 0;
+function haptic(p, priority = 0) {
   if (SAVE.muted) return;
-  if (navigator.vibrate) { try { navigator.vibrate(p); } catch (e) {} }
+  const now=performance.now();
+  if (now<hapticUntil && priority<hapticPriority) return;
+  if (navigator.vibrate) { try {
+    if(navigator.vibrate(p)) {
+      hapticUntil=now+(Array.isArray(p)?p.reduce((sum,n)=>sum+n,0):p);
+      hapticPriority=priority;
+    }
+  } catch (e) {} }
 }
 
 /* ==================================================================
@@ -752,7 +781,7 @@ function spawnInterval() {
   const S = CONFIG.SPAWN;
   let iv = lerp(S.INTERVAL, S.INTERVAL_MIN, G.difficulty);
   if (G.overtime) iv *= CONFIG.OVERTIME.INTERVAL_MULT;
-  return iv;
+  return iv / S.RATE;
 }
 function bombChance() {
   const S = CONFIG.SPAWN;
@@ -1108,7 +1137,7 @@ function pickGrab(p) {
   const SW = CONFIG.SWIPE;
   let best = null, bestScore = Infinity, ballNear = false;
   for (const o of objs) {
-    if (!o.alive) continue;
+    if (!o.alive || o.scored || o.dying) continue;
     const d = dist(p.x, p.y, o.x, o.y);
     const reach = o.kind === "bomb"
       ? o.r + SW.GRAB_RADIUS - SW.BOMB_DEADZONE
@@ -1123,7 +1152,15 @@ function pickGrab(p) {
 }
 
 function grabObject(o, p) {
+  if (!o.alive || o.scored || o.dying) return;
   stroke.grab = o; stroke.grabT = 0;
+  o.handTricks ||= {};
+  if (o.kind === 'ball' && o.toss && G.elapsed-o.toss.t>=CONFIG.HANDLING.CATCH_AIRTIME &&
+    o.y<=o.toss.y-CONFIG.HANDLING.CATCH_RISE)
+    o.handTricks.selfoop = true;
+  o.toss = null;
+  o.handPath = [{x:o.x,y:o.y}];
+  o.handAxes = {x:{anchor:o.x,dir:0,legs:[]},y:{anchor:o.y,dir:0,legs:[]}};
   o.held = true;
   o.heldOffX = clamp(o.x - p.x, -o.r, o.r);
   o.heldOffY = clamp(o.y - p.y, -o.r, o.r);
@@ -1137,6 +1174,50 @@ function grabObject(o, p) {
   Sound.click(); haptic(6);
   burst(o.x, o.y, 6, { c: o.kind === "bomb" ? ["#ff7043", "#fff"] : ["#ffd23f", "#fff"],
     spMin: 40, spMax: 170, rMin: 2, rMax: 4, lifeMin: .12, lifeMax: .3, g: 300 });
+}
+
+// Measure actual carried movement, after collision resolution, not pointer motion
+// through a wall. Each qualifying stroke must span roughly a ball diameter.
+function trackHandling(o) {
+  if (o.kind !== 'ball' || !o.handPath) return;
+  const h=CONFIG.HANDLING,path=o.handPath,last=path.at(-1);
+  if (Math.hypot(o.x-last.x,o.y-last.y)<h.SAMPLE_DISTANCE) return;
+  for (const axis of ['x','y']) {
+    const a=o.handAxes[axis],delta=o[axis]-a.anchor;
+    if (a.dir && Math.sign(delta)===a.dir) a.anchor=o[axis];
+    else if (Math.abs(delta)>=h.STROKE_DISTANCE) {
+      a.dir=Math.sign(delta);a.anchor=o[axis];a.legs.push(a.dir);
+      if(a.legs.length>3)a.legs.shift();
+      if(a.legs.length===3 && (axis==='x' || a.legs.join(',')==='-1,1,-1'))
+        o.handTricks[axis==='x'?'crossover':'doublepump']=true;
+    }
+  }
+  path.push({x:o.x,y:o.y});
+  if(path.length>h.HISTORY)path.shift();
+  if(!o.handTricks.orbit && hasCarriedLoop(path))o.handTricks.orbit=true;
+}
+
+function hasCarriedLoop(path) {
+  const h=CONFIG.HANDLING,last=path.at(-1);
+  // A circle may begin after the player has repositioned the ball.
+  for(let start=path.length-h.LOOP_POINTS;start>=0;start--) {
+    const first=path[start];
+    if(Math.hypot(last.x-first.x,last.y-first.y)>h.LOOP_CLOSE)continue;
+    let minX=first.x,maxX=first.x,minY=first.y,maxY=first.y;
+    let turn=0,previous=null,twiceArea=0;
+    for(let i=start+1;i<path.length;i++) {
+      const p=path[i],q=path[i-1],a=Math.atan2(p.y-q.y,p.x-q.x);
+      if(previous!==null)turn+=angDelta(previous,a);
+      previous=a;twiceArea+=q.x*p.y-p.x*q.y;
+      minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);
+      minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y);
+    }
+    twiceArea+=last.x*first.y-first.x*last.y;
+    const width=maxX-minX,height=maxY-minY;
+    if(width>=h.LOOP_SPAN && height>=h.LOOP_SPAN && Math.abs(turn)>=h.LOOP_TURN &&
+      Math.abs(twiceArea)/2>=width*height*h.LOOP_AREA_RATIO)return true;
+  }
+  return false;
 }
 
 function dragTo(p) {
@@ -1153,6 +1234,7 @@ function dragTo(p) {
     o.x += dx; o.y += dy; o.rot += dx/o.r;
     const tx=o.x, ty=o.y;
     collideHoop(o);
+    trackHandling(o);
     checkThroughRim(o,py,px);
     // Stop at contact. A distant pointer sample must not pull a held ball through solid iron.
     if (Math.abs(o.x-tx)+Math.abs(o.y-ty)>.01) break;
@@ -1168,7 +1250,7 @@ function inRimMouth(o) {
          o.y > rimY - M.ABOVE && o.y < rimY + M.BELOW;
 }
 
-/* a ball carried into the net still counts - it just does not earn tricks */
+/* A plain hand finish scores base points; demonstrated handling adds bonuses. */
 function manualFinish(o) {
   stroke.grab = null;
   o.held = false;
@@ -1223,7 +1305,7 @@ function shotGuidePoints() {
   if(!o || o.kind!=='ball' || G.state!==ST.PLAY)return [];
   const v=strokeVelocity();
   if(nowSec()-(stroke.pts.at(-1)?.t || 0)>.12 || v.sp<sw.RELEASE_MIN)return [];
-  const spin=releaseSpin(o),launch=shotVelocity(o,v,sw.RELEASE_POWER,0,spin);
+  const spin=releaseSpin(o),launch=heldLaunch(o,v,spin);
   const projected={x:o.x,y:o.y,spin,grav:o.grav,kind:o.kind,...launch};
   const b=boardRect(),points=[],h=.025/6;
   for(let i=0;i<24;i++) {
@@ -1238,6 +1320,12 @@ function shotGuidePoints() {
     points.push({x:projected.x,y:projected.y,r:3.5-i*.07,alpha:(1-i/24)*.8});
   }
   return points;
+}
+
+function heldLaunch(o,v,spin=o.spin) {
+  const sw=CONFIG.SWIPE,power=o.kind==='ball'?equippedBall().power:1;
+  const scale=Math.min(sw.RELEASE_POWER,sw.RELEASE_MAX/Math.max(1,v.sp*power));
+  return shotVelocity(o,v,scale,0,spin);
 }
 
 function releaseGrab() {
@@ -1259,11 +1347,12 @@ function releaseGrab() {
                        SW.MAX_IMPULSE);
   const ux = v.vx / sp, uy = v.vy / sp;
   o.spin = releaseSpin(o);
-  const launch=shotVelocity(o,v,SW.RELEASE_POWER);
+  const launch=heldLaunch(o,v);
   o.vx=launch.vx;o.vy=launch.vy;
   o.trailT = .6;
 
   if (o.kind === "ball") {
+    o.toss = o.vy < -CONFIG.HANDLING.TOSS_SPEED ? {y:o.y,t:G.elapsed} : null;
     o.lastSwipeT = G.elapsed;
     o.lastSwipeY = o.y;
     if (Math.abs(stroke.turn) >= SW.WINDMILL_TURN) o.windmill = true;
@@ -1372,6 +1461,7 @@ const styleLevel = o => Math.min(CONFIG.STYLE.MAX_LEVEL,
 const styleMult = o => 1 + styleLevel(o) * CONFIG.STYLE.MULT_PER_LEVEL;
 
 function applySwipe(o, hx, hy, v) {
+  o.toss = null; // a new flick replaces the flight being tracked for a self alley-oop
   const SW = CONFIG.SWIPE;
   const ux = v.vx / v.sp, uy = v.vy / v.sp;
 
@@ -1428,12 +1518,12 @@ function scoreDunk(o) {
     comboBefore: G.combo,
     sinceLastDunk: G.elapsed - G.lastDunkAt,
     buzzer: CONFIG.MODES[G.mode].seconds > 0 && G.timeLeft <= 3,
-    manual: !!o.manual
+    manual: !!o.manual, handTricks:o.handTricks
   };
 
   // ---- which tricks landed ----------------------------------------
-  // a ball placed in by hand scores, but it is not a trick
-  const got = snap.manual ? [] : TRICKS.filter(t => { try { return t.test(snap); } catch (e) { return false; } });
+  // Hand finishes earn demonstrated handling tricks, not automatic shot bonuses.
+  const got = TRICKS.filter(t => { try { return (!snap.manual || t.manual) && t.test(snap); } catch (e) { return false; } });
   const primary = got.reduce((a, b) => (!a || b.pts > a.pts) ? b : a, null);
 
   // ---- variety: new tricks pay, repeats die off --------------------
@@ -1491,11 +1581,11 @@ function scoreDunk(o) {
     else if (varietyLabel) pop(hoop.x, rimY + 104, varietyLabel, varietyLabel === "FRESH" ? "#8ef5a0" : "#b09aa4", 17);
     callTrick(primary.name, primary.colour);
     Sound.trick(); Sound.cheer(1.4);
-    Shake.add(J.SHAKE_TRICK); flash(J.FLASH_TRICK); haptic(J.HAPTIC_TRICK);
+    Shake.add(J.SHAKE_TRICK); flash(J.FLASH_TRICK); haptic(J.HAPTIC_TRICK, 1);
     spriteFx(IMG.burst, hoop.x, rimY, 300, .5, rand(0, TAU), rand(-2, 2));
   } else {
     if (snap.manual) pop(hoop.x, rimY + 16, "HAND DUNK", "#fff4e0", 22);
-    Sound.cheer(.7); Shake.add(J.SHAKE_DUNK); flash(J.FLASH_DUNK); haptic(J.HAPTIC_DUNK);
+    Sound.cheer(.7); Shake.add(J.SHAKE_DUNK); flash(J.FLASH_DUNK); haptic(J.HAPTIC_DUNK, 1);
   }
   if (snap.manual) Sound.swish();
   else if (snap.hitRim === 0 && snap.hitBoard === 0) Sound.swish(); else Sound.clank();
@@ -1568,7 +1658,7 @@ function detonate(o, penalty) {
   }
 
   SAVE.stats.bombs++;
-  Shake.add(J.SHAKE_BOMB); flash(J.FLASH_BOMB); haptic(J.HAPTIC_BOMB);
+  Shake.add(J.SHAKE_BOMB); flash(J.FLASH_BOMB); haptic(J.HAPTIC_BOMB, 2);
   breakCombo("BOOM");
 
   const md = CONFIG.MODES[G.mode];

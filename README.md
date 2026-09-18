@@ -46,8 +46,10 @@ No third-party runtime, CDN, APK or 3D gameplay conversion is required.
   the front rim and net; the board stays fixed and the net reacts to a dunk.
 - Rim and scoring dimensions share measured artwork anchors. The outer rim is about
   2.3 times the classic ball diameter. Its playable opening remains fixed.
-- Balls rise in varied arcs from the lower-right catching lane. Flicks and held releases
-  share the same power scale; a short trajectory preview helps read the release.
+- Balls rise in varied arcs from the lower-right catching lane, at 70% of the previous
+  wave frequency (bomb odds and double-wave odds are unchanged).
+- Held releases use 0.52 power instead of 0.85, with a 1050 raw impulse cap; assisted
+  long-range arcs and quick flicks remain available. The preview uses the same launch.
 - Scoring uses the actual downward path through the opening, not averaged gesture velocity.
   This fixes missed hand dunks after a quick upward-to-downward change of direction.
 - Fast throws and held drags are subdivided for collision checks. A ball cannot be dragged
@@ -62,7 +64,21 @@ touch feel should also be checked on a physical phone. No new APK is part of thi
 go to throw it at the speed your finger was moving. A fast swipe that merely passes
 *through* a ball flicks it too, so a deliberate drag and a quick slash both work. Let go
 without moving and the ball simply drops. Carrying a ball straight into the net also
-counts - it scores the base value and keeps the combo, but earns no trick bonus.
+counts - a plain placement scores the base value and keeps the combo. Demonstrated
+handling tricks also count on hand finishes. Each ball scores only once.
+
+**Four new handling bonuses.** Carry broad left-right-left strokes for CROSSOVER (+170),
+up-down-up for DOUBLE PUMP (+190), or a closed circle at least 120 world units wide and
+tall for 360 JAM (+230). SELF ALLEY-OOP (+210) needs an upward release, at least 0.18s
+airtime, and a catch 90 units higher, then a dunk. Strokes need 90 units of travel;
+small finger jitter and dragging against a wall do not count. Bonuses can stack and
+use the existing variety/combo/style multipliers. You can hold for up to 3.5s.
+
+**Mobile feedback.** Scores use short vibration pulses and penalty explosions use a
+longer double pulse. Small contact taps cannot interrupt those patterns. The existing
+sound mute also disables vibration. This is best-effort browser haptics: unsupported
+browsers safely skip it; browser vibration controls pulse duration, not motor intensity.
+See [Vibration API support](https://developer.mozilla.org/en-US/docs/Web/API/Vibration_API).
 
 **Skills.** Keep a ball alive instead of banking it straight away and it builds **style**.
 Flick it back up on a rhythm, hit it off-centre to load it with spin, pop it high — every

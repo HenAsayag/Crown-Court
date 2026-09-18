@@ -1,5 +1,23 @@
 # Gameplay / scoring QA
 
+## Handling update — September 18, 2026
+
+Incoming wave frequency is now 0.70 of the previous rate, including overtime.
+Held throws are softer and raw impulse is capped; flick assists remain unchanged.
+Four new bonuses reward actual carried paths or an upward toss/elevated recatch.
+Hand finishes can claim these bonuses without inheriting automatic shot bonuses.
+
+Added engine tests cover rate scaling, soft/capped releases, all four bonuses,
+once-only scoring, jitter and board-blocked gestures, retraced lines versus real
+circles, circles after repositioning, invalid recatches and replaced toss flights.
+Haptic tests cover score/bomb patterns, interruption priority, mute, missing API,
+and throwing API adapters. Existing scoring/flight matrices remain in the suite.
+
+Browser check: updated WebGL menu and instructions render at desktop size and
+in the 844×390 phone-layout iframe. This is not a physical touch or vibration test.
+The device/browser decides whether vibration is available; pulse duration is
+controllable, motor intensity is not. No APK or deployment was performed.
+
 ## Request
 
 Make throws travel more toward the hoop, check that legitimate baskets register,
