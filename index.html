@@ -317,6 +317,7 @@ body{display:flex;align-items:center;justify-content:center}
     <div class="ph"></div>
     <h2>Turn your phone</h2>
     <p>CROWN COURT is played on its side.</p>
+    <button class="fullscreen-btn" data-fullscreen>⛶ Full screen</button>
   </div>
 </div>
 
@@ -351,7 +352,7 @@ body{display:flex;align-items:center;justify-content:center}
 
   <!-- ============ TITLE ============ -->
   <section class="screen on" id="scTitle">
-    <div class="home-top"><span class="brand-mark">♛ <b>CROWN COURT</b></span><span class="edition">STREETBALL ARCADE</span></div>
+    <div class="home-top"><span class="brand-mark">♛ <b>CROWN COURT</b></span><button class="fullscreen-btn" data-fullscreen>⛶ Full screen</button></div>
     <div class="hero-art" aria-hidden="true"><div class="hero-ring"></div><canvas data-art="lion"></canvas><span class="hero-stamp">YOUR COURT.<br>YOUR RULES.</span></div>
     <div class="half fadeUp home-copy">
       <div class="eyebrow">FROM THE STREET. TO THE THRONE.</div>
@@ -441,6 +442,7 @@ body{display:flex;align-items:center;justify-content:center}
   <!-- ============ PAUSE ============ -->
   <section class="screen col" id="scPause">
     <div class="h2">Paused</div>
+    <button class="fullscreen-btn" data-fullscreen>⛶ Full screen</button>
     <button class="btn red md" id="btnResume"><span>Resume</span></button>
     <div class="row">
       <button class="btn dark sm" id="btnRestart"><span>Restart</span></button>
@@ -509,5 +511,7 @@ body{display:flex;align-items:center;justify-content:center}
 <script src="art.js"></script>
 <script src="hoop-art.js"></script>
 <script src="game.js"></script>
+<div id="displayStatus" role="status" aria-live="polite"></div>
+<script src="mobile.js"></script>
 </body>
 </html>

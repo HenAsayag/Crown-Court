@@ -4,6 +4,6 @@ import { cp, rm, mkdir } from 'node:fs/promises';
 const OUT = 'www';
 await rm(OUT, { recursive: true, force: true });
 await mkdir(OUT, { recursive: true });
-for (const f of ['index.html', 'arena.css', 'art.js', 'hoop-art.js', 'game.js', 'manifest.webmanifest', 'sw.js', 'assets'])
+for (const f of ['index.html', 'arena.css', 'art.js', 'hoop-art.js', 'game.js', 'mobile.js', 'manifest.webmanifest', 'sw.js', 'assets'])
   await cp(f, `${OUT}/${f}`, { recursive: true });
 console.log('www/ built');
