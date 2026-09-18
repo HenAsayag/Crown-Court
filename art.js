@@ -35,5 +35,15 @@ const CourtArt = (() => {
     const r=regions[el.dataset.art]; if(!r)return;
     el.width=r[3];el.height=r[4];paint(el.getContext('2d'),el.dataset.art,0,0,el.width,el.height);
   }));
-  return {ready,paint,canvas};
+  // Pre-mask once, then upload the resulting sprite once to the GPU.
+  const textures = new Map();
+  function texture(name) {
+    if (textures.has(name)) return textures.get(name);
+    const region=regions[name];
+    if (!region || !sheets[region[0]]?.naturalWidth) return null;
+    const el=document.createElement('canvas');el.width=region[3];el.height=region[4];
+    paint(el.getContext('2d'),name,0,0,el.width,el.height);
+    textures.set(name,el);return el;
+  }
+  return {ready,paint,canvas,texture};
 })();

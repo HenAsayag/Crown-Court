@@ -5,7 +5,8 @@ import {readFileSync} from 'node:fs';
 
 // Run the actual engine with inert DOM/audio adapters; no browser state or player save is touched.
 const source=readFileSync(new URL('../game.js',import.meta.url),'utf8').replace(/boot\(\);\s*$/,'');
-export function engine(){
+const gpuScene=readFileSync(new URL('../webgl-scene.js',import.meta.url),'utf8');
+export function engine(gpu=null){
   const noop=()=>{};
   const drawing=new Proxy({createLinearGradient:()=>({addColorStop:noop}),createRadialGradient:()=>({addColorStop:noop})},{get:(t,k)=>t[k]||noop});
   const element=()=>({style:{},classList:{add:noop,remove:noop,toggle:noop},dataset:{},children:[],value:'',textContent:'',
@@ -16,12 +17,43 @@ export function engine(){
     querySelectorAll:()=>[],createElement:element,addEventListener:noop,hidden:false};
   const context=vm.createContext({document,window:{addEventListener:noop,removeEventListener:noop},navigator:{},
     localStorage:{getItem:()=>null,setItem:noop},performance:{now:()=>1000},requestAnimationFrame:noop,
-    setTimeout:()=>1,clearTimeout:noop,structuredClone,console,Math:Object.create(Math),CourtArt:{paint:noop},assert});
+    setTimeout:()=>1,clearTimeout:noop,structuredClone,console,Math:Object.create(Math),CourtArt:{paint:noop},
+    CourtGL:gpu?{create:()=>gpu}:undefined,assert});
   vm.runInContext('Math.random=()=>.5;',context);
   vm.runInContext(source,context);
+  vm.runInContext(gpuScene,context);
   vm.runInContext('startRun("time"); G.spawnT=999;',context);
   return code=>vm.runInContext(code,context);
 }
+test('WebGL scene keeps the ball between the backboard and front net without changing score',()=>{
+  const run=engine();
+  run(`
+    const calls=[];
+    const r={begin:()=>true,end:()=>calls.push('end'),rect:()=>{},ellipse:()=>{},glow:()=>{},text:()=>{},
+      sprite:image=>{if(image)calls.push(image.name)}};
+    CourtArt.texture=()=>({width:100,name:'ball'});
+    globalThis.HoopArt={layers:()=>({back:{name:'back'},front:{name:'net'}})};
+    IMG.hoop={width:1448};
+    const o=makeObject('ball',hoop.x,hoop.y,0,0);o.age=1;objs.push(o);
+    const before=G.score;drawWebGL(r,0);
+    assert.ok(calls.indexOf('back')<calls.indexOf('ball'));
+    assert.ok(calls.indexOf('ball')<calls.indexOf('net'));
+    assert.equal(calls.at(-1),'end');assert.equal(G.score,before);
+  `);
+});
+
+test('WebGL scene skips all rendering during GPU context loss',()=>{
+  const run=engine();
+  run(`drawWebGL({begin:()=>false},.016);`);
+});
+
+test('GPU loss blocks new games and resume until graphics are restored',()=>{
+  const gpu={lost:false},run=engine(gpu);
+  run('pause();');gpu.lost=true;
+  run(`resume();assert.equal(G.state,ST.PAUSED);startRun('arcade');assert.equal(G.mode,'time');`);
+  gpu.lost=false;run('resume();assert.equal(G.state,ST.PLAY);');
+});
+
 test('a downward ball scores once and keeps falling through the net',()=>{
   const run=engine();
   run(`const o=makeObject('ball',hoop.x,hoop.y-8,0,400);o.swiped=true;objs.push(o);stepObjects(.05);

@@ -22,5 +22,18 @@ const HoopArt = (() => {
     g.scale(1,Math.max(.9,1+hoop.net/600));g.translate(0,-anchor);
     g.beginPath();path(g);g.clip();g.drawImage(img,0,0,c.SOURCE_W,c.SOURCE_H);g.restore();
   }
-  return {back,front};
+  const layerCache = new WeakMap();
+  function layers(img,c) {
+    if(!img?.width)return null;
+    if(layerCache.has(img))return layerCache.get(img);
+    function layer(isFront) {
+      const el=document.createElement('canvas');el.width=c.SOURCE_W;el.height=c.SOURCE_H;
+      const g=el.getContext('2d');g.beginPath();
+      if(!isFront)g.rect(0,0,c.SOURCE_W,c.SOURCE_H);
+      path(g);g.clip(isFront?'nonzero':'evenodd');g.drawImage(img,0,0,c.SOURCE_W,c.SOURCE_H);
+      return el;
+    }
+    const result={back:layer(false),front:layer(true)};layerCache.set(img,result);return result;
+  }
+  return {back,front,layers};
 })();

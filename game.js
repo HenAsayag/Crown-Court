@@ -1596,6 +1596,7 @@ function banner(text) {
    14. RUN LIFECYCLE
    ================================================================== */
 function startRun(mode) {
+  if (glRenderer?.lost) return;
   const md = CONFIG.MODES[mode];
   G.mode = mode; G.state = ST.PLAY;
   G.score = 0; G.dunks = 0; G.tricks = 0; G.crownsRun = 0;
@@ -1768,7 +1769,21 @@ function updateHoopSprings(dt) {
 /* ==================================================================
    16. CANVAS
    ================================================================== */
-const cv = $("game"), ctx = cv.getContext("2d", { alpha: false });
+function createRenderSurface() {
+  let canvas = $('game');
+  const forceCanvas = typeof location !== 'undefined' && new URLSearchParams(location.search).get('renderer') === 'canvas';
+  if (typeof CourtGL !== 'undefined' && !forceCanvas) {
+    const gpu = CourtGL.create(canvas);
+    if (gpu) return {canvas, gpu, context:null};
+    // A canvas which acquired WebGL cannot subsequently acquire a 2D context.
+    const replacement = canvas.cloneNode(false);
+    canvas.replaceWith(replacement);canvas=replacement;
+  }
+  canvas.dataset.renderer='canvas2d';
+  return {canvas,gpu:null,context:canvas.getContext('2d',{alpha:false})};
+}
+const renderSurface = createRenderSurface();
+const cv = renderSurface.canvas, ctx = renderSurface.context, glRenderer = renderSurface.gpu;
 let SCALE = 1, DPR = 1;
 let lastCW = 0, lastCH = 0;
 function resize() {
@@ -1801,6 +1816,7 @@ function ensureSized() {
    ================================================================== */
 let lastDt = 1 / 60;
 function draw() {
+  if (glRenderer) { drawWebGL(glRenderer, lastDt); return; }
   ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ctx.save();
   ctx.translate(Shake.x, Shake.y);
@@ -2513,6 +2529,7 @@ function pause() {
 }
 function resume() {
   if (G.state !== ST.PAUSED) return;
+  if (glRenderer?.lost) return;
   G.state = ST.PLAY;
   showScreen(null);
   Sound.ambience(true);
@@ -2570,6 +2587,16 @@ nameIn.oninput = () => {
 nameIn.onblur = () => { if (!nameIn.value) { nameIn.value = "YOU"; SAVE.name = "YOU"; saveNow(); } };
 
 cv.addEventListener("pointerdown", onDown, { passive: false });
+cv.addEventListener('webglcontextlost', () => {
+  if (G.state===ST.PLAY) pause();
+  $('rendererLabel').textContent='Graphics paused — restoring WebGL…';
+  $('graphicsStatus').textContent='Restoring graphics. Please wait before resuming.';
+});
+cv.addEventListener('webglcontextrestored', () => {
+  $('rendererLabel').textContent=glRenderer?.lost?'Graphics recovery failed — reload to retry':'WEBGL · GPU';
+  $('graphicsStatus').textContent=glRenderer?.lost?'Graphics recovery failed. Reload the page to retry.':'';
+  last=performance.now();
+});
 window.addEventListener("pointermove", onMove, { passive: false });
 window.addEventListener("pointerup", onUp, { passive: false });
 window.addEventListener("pointercancel", e => {
@@ -2599,7 +2626,7 @@ function frame(now) {
   if (dt > .05) dt = .05;
   ensureSized();
   lastDt = dt;
-  update(dt);
+  if (!glRenderer?.lost) update(dt);
   draw();
 }
 
@@ -2617,6 +2644,7 @@ async function boot() {
   G.state = ST.MENU;
   showHUD(false);
   showScreen('scTitle');
+  $('rendererLabel').textContent=glRenderer?'WEBGL · GPU':'CANVAS · COMPATIBILITY MODE';
   $("loader").classList.add("gone");
   setTimeout(() => $("loader").remove(), 600);
   last = performance.now();

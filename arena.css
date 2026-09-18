@@ -24,6 +24,7 @@ button,input{font:inherit}button{touch-action:manipulation}button:focus-visible,
 @media(max-width:900px){#scTitle{grid-template-columns:1.1fr .7fr 1.1fr;gap:1vw;padding-left:4vw;padding-right:4vw}.home-actions{padding:14px}.home-actions .btn span{font-size:11px}.home-actions #btnPlay span{font-size:17px;padding:0 9px}.edition{font-size:8px}.home-pills{gap:4px}.home-description{font-size:12px}.hero-art canvas{width:165%;max-width:165%}.home-copy .logo{font-size:7.5vw}.home-bottom{font-size:8px}.home-actions #rankRow{font-size:8px}.modeRow{width:92%}.grid.g5{gap:7px}.screen{padding-left:16px;padding-right:16px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 /* Keep phone display controls away from the ball-throwing surface. */
+#rendererLabel{display:block;font:700 9px/1.5 system-ui;letter-spacing:.12em;color:#9de4e6}
 .fullscreen-btn{min-height:44px;padding:10px 16px;border:1px solid #e4b95888;border-radius:12px;background:#132539;color:#ffe1a0;font:700 12px system-ui;cursor:pointer;touch-action:manipulation}
 .fullscreen-btn:hover{background:#25415b}.fullscreen-btn:focus-visible{outline:3px solid #fff;outline-offset:3px}.fullscreen-btn:disabled{opacity:.6}
 #rotate .fullscreen-btn{margin-top:22px}

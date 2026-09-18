@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Crown Court — WebGL verification</title>
+<style>body{background:#142333;color:#eee;font:16px system-ui;padding:24px}canvas{width:256px;height:256px;border:1px solid #789}button{padding:12px}pre{white-space:pre-wrap}</style>
+<h1>WebGL browser verification</h1>
+<p>Isolated renderer checks. This page never loads the game or player saves.</p>
+<canvas id="test" width="64" height="64"></canvas>
+<button id="run">Run GPU checks</button>
+<pre id="results" role="status">Ready</pre>
+<script src="../webgl-renderer.js"></script>
+<script>
+const button=document.getElementById('run'),output=document.getElementById('results');
+button.onclick=async()=>{
+  button.disabled=true;output.textContent='Running…';
+  const canvas=document.getElementById('test'),r=CourtGL.create(canvas),lines=[];
+  function check(condition,message){if(!condition)throw new Error(message);lines.push('PASS '+message);output.textContent=lines.join('\n');}
+  try{
+    check(!!r,'Native WebGL context and shaders initialize');
+    const pixel=(x,y)=>{const p=new Uint8Array(4);r.gl.readPixels(x,63-y,1,1,r.gl.RGBA,r.gl.UNSIGNED_BYTE,p);return [...p]};
+    const near=(actual,expected)=>actual.every((value,i)=>Math.abs(value-expected[i])<4);
+    r.begin(64,64,1,0,0);r.rect(0,0,64,64,'#ff0000');r.end();
+    check(near(pixel(32,32),[255,0,0,255]),'Solid color shader');
+    const image=document.createElement('canvas');image.width=image.height=2;
+    const c=image.getContext('2d');
+    for(const [x,y,color] of [[0,0,'red'],[1,0,'lime'],[0,1,'blue'],[1,1,'white']]){c.fillStyle=color;c.fillRect(x,y,1,1)}
+    r.begin(64,64,1,0,0);r.sprite(image,0,0,64,64);r.end();
+    check(near(pixel(1,1),[255,0,0,255])&&near(pixel(62,1),[0,255,0,255])&&near(pixel(1,62),[0,0,255,255]),'Texture orientation and UV coordinates');
+    r.begin(64,64,1,0,0);r.sprite(image,0,0,64,64,{sx:1,sy:1,sw:1,sh:1});r.end();
+    check(near(pixel(40,40),[255,255,255,255]),'Atlas source-region cropping');
+    r.begin(64,64,1,0,0);r.rect(0,0,64,64,'#000');r.rect(0,0,64,64,'#ff0000',.5);r.rect(0,0,64,64,'#0000ff',.5);r.end();
+    check(near(pixel(32,32),[64,0,128,255]),'Premultiplied source-over alpha');
+    r.begin(64,64,1,0,0);r.rect(0,0,64,64,'#000');r.ellipse(32,32,20,10,'#00ff00');r.end();
+    check(near(pixel(32,32),[0,255,0,255])&&near(pixel(13,23),[0,0,0,255]),'Procedural ellipse has transparent corners');
+    r.begin(64,64,1,0,0);r.rect(0,0,64,64,'#000');r.ellipse(32,32,20,20,'#ff0000',.5,0,true);r.ellipse(32,32,20,20,'#0000ff',.5,0,true);r.end();
+    check(near(pixel(32,32),[128,0,128,255]),'Additive lighting');
+    check(r.gl.getError()===r.gl.NO_ERROR,'No WebGL errors');
+    const extension=r.gl.getExtension('WEBGL_lose_context');
+    if(extension){
+      const event=name=>new Promise((resolve,reject)=>{
+        const timeout=setTimeout(()=>reject(new Error(name+' timeout')),4000);
+        canvas.addEventListener(name,()=>{clearTimeout(timeout);resolve()},{once:true});
+      });
+      const lost=event('webglcontextlost');extension.loseContext();await lost;
+      check(r.lost&&!r.begin(64,64,1,0,0),'Context loss suspends drawing');
+      const restored=event('webglcontextrestored');setTimeout(()=>extension.restoreContext(),80);await restored;
+      check(!r.lost&&r.begin(64,64,1,0,0),'Context restoration resumes renderer');
+      r.sprite(image,0,0,64,64);r.end();
+      check(near(pixel(1,1),[255,0,0,255]),'Textures re-upload after GPU restoration');
+    }else lines.push('SKIP Context-loss extension unavailable');
+    output.textContent=lines.join('\n')+'\nCOMPLETE';
+  }catch(error){output.textContent=lines.join('\n')+'\nFAIL '+error.message;console.error(error)}
+};
+</script>

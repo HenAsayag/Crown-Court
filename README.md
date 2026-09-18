@@ -9,6 +9,20 @@ from the bottom, and you drag balls into the net and sweep bombs out over the si
 
 ## Current gameplay revision
 
+### WebGL renderer
+
+WebGL is now the default renderer for the 2D court, hoop layers, balls, bombs,
+crowns, trails and particles. Sprites are GPU textures; circles, rings and glows
+are shader-drawn. Small offscreen canvases prepare masked sprites and text only:
+the game does not render a full Canvas frame and copy it into WebGL.
+Menus remain accessible HTML/CSS. Physics, scoring and touch controls are unchanged.
+
+The home screen reports `WEBGL · GPU`. Unsupported devices automatically use the
+original Canvas renderer (`CANVAS · COMPATIBILITY MODE`). For comparison, open
+`/?nosw=1&renderer=canvas`. GPU context loss pauses an active run; textures rebuild
+after restoration, and the player can resume from the pause menu.
+No third-party runtime, CDN, APK or 3D gameplay conversion is required.
+
 - Illustrated home, mode selection, locker, and an in-game control guide.
 - The supplied street-hoop artwork is rendered in back/front layers. Balls fall behind
   the front rim and net; the board stays fixed and the net reacts to a dunk.
