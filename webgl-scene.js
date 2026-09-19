@@ -78,7 +78,7 @@ function drawWebGLTrail(r,o) {
 }
 
 function drawWebGLBall(r,o) {
-  const def=equippedBall(),level=styleLevel(o),speed=Math.hypot(o.vx,o.vy);
+  const def=equippedBall(),level=styleLevel(o);
   r.ellipse(o.x+5,o.y+o.r*.82,o.r*.9,o.r*.32,'#000',.28);
   if(level>0) {
     const col=CONFIG.STYLE.COLOURS[level],pulse=.6+.4*Math.sin(G.elapsed*(6+level*2)+o.id);
@@ -90,10 +90,8 @@ function drawWebGLBall(r,o) {
   if(o.comboCarrier && G.combo>0) r.glow(o.x,o.y,o.r*1.65,'#ffc83d',.45);
   const image=def.art?CourtArt.texture(def.art):(IMG[def.sprite]||IMG.ball);
   const pop=o.age<.22?easeOutBack(clamp(o.age/.22,0,1)):1;
-  const stretch=1+clamp(speed/5200,0,.26),land=o.squash>0?1-o.squash*.35:1;
-  // Affine flight squash is independent of the texture's spin.
-  if(image?.width) r.sprite(image,o.x,o.y,o.r*2*pop,o.r*2*pop,{anchorX:.5,anchorY:.5,rotation:o.rot,
-    stretchX:stretch,stretchY:land/stretch,stretchRotation:Math.atan2(o.vy,o.vx)});
+  // Keep the silhouette circular, including fast throws and rim impacts.
+  if(image?.width) r.sprite(image,o.x,o.y,o.r*2*pop,o.r*2*pop,{anchorX:.5,anchorY:.5,rotation:o.rot});
   else r.ellipse(o.x,o.y,o.r*pop,o.r*pop,'#e07a2b');
   if(level>0 && !o.dying) r.text('x'+styleMult(o).toFixed(1),o.x,o.y+o.r+16,
     {size:15+level,color:CONFIG.STYLE.COLOURS[level],font:FONT,stroke:5});

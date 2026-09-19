@@ -2092,14 +2092,8 @@ function drawBall(o) {
   const def = equippedBall();
   const img = IMG[def.sprite] || IMG.ball;
   const d = o.r * 2;
-  /* Squash and stretch along the direction of travel, plus a pop as it
-     enters play. A rigid circle reads as a sprite; this reads as a ball. */
-  const sp = Math.hypot(o.vx, o.vy);
-  const stretch = 1 + clamp(sp / 5200, 0, .26);
-  const squash = 1 / stretch;
-  const travel = Math.atan2(o.vy, o.vx);
+  // Uniform spawn scaling preserves a circular silhouette in flight and on impact.
   const pop = o.age < .22 ? easeOutBack(clamp(o.age / .22, 0, 1)) : 1;
-  const land = o.squash > 0 ? 1 - o.squash * .35 : 1;
   // contact shadow so the ball reads against a busy court
   ctx.save();
   ctx.globalAlpha = .28; ctx.fillStyle = "#000";
@@ -2132,10 +2126,7 @@ function drawBall(o) {
   ctx.save();
   ctx.translate(o.x, o.y);
   ctx.scale(pop, pop);
-  ctx.rotate(travel);                       // squash along the flight line
-  ctx.scale(stretch, squash * land);
-  ctx.rotate(-travel);
-  ctx.rotate(o.rot);                        // ...then spin the artwork
+  ctx.rotate(o.rot);                        // spin without deforming the artwork
   if (o.comboCarrier && G.combo > 0) {
     ctx.shadowColor = "rgba(255,200,61,.9)"; ctx.shadowBlur = 26;
   }

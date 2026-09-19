@@ -26,6 +26,23 @@ export function engine(gpu=null){
   return code=>vm.runInContext(code,context);
 }
 
+for(const renderer of ['WebGL','Canvas']) test(renderer+' keeps basketballs circular during flight and impact',()=>{
+  engine()(`
+    CourtArt.texture=()=>({width:100});
+    const scales=[];
+    ctx.scale=(x,y)=>scales.push([x,y]);
+    const r={ellipse:()=>{},glow:()=>{},text:()=>{},sprite:(img,x,y,w,h,opt)=>{
+      assert.equal(w,h);scales.push([opt.stretchX??1,opt.stretchY??1]);
+    }};
+    for(const speed of [0,900,2400])for(const squash of [0,.5,1])for(const age of [.1,1]) {
+      const o=makeObject('ball',800,300,speed,-speed);o.age=age;o.squash=squash;o.rot=1.2;
+      if('${renderer}'==='WebGL')drawWebGLBall(r,o);else drawBall(o);
+    }
+    assert.ok(scales.length>0);
+    for(const [x,y] of scales)assert.equal(x,y,'ball must use uniform scaling');
+  `);
+});
+
 test('waves run at 70% of the old frequency throughout the difficulty ramp',()=>{
   engine()(`
     for(const [difficulty,oldInterval] of [[0,1.08],[.5,.81],[1,.54]]) {
