@@ -318,6 +318,8 @@ body{display:flex;align-items:center;justify-content:center}
     <h2>Turn your phone</h2>
     <p>CROWN COURT is played on its side.</p>
     <button class="fullscreen-btn" data-fullscreen>⛶ Full screen</button>
+    <button class="fullscreen-btn browser-play-btn" data-browser-play aria-pressed="false">Using iPhone? Play without fullscreen</button>
+    <p>No fullscreen or installation required. Landscape recommended.</p>
   </div>
 </div>
 
@@ -352,7 +354,7 @@ body{display:flex;align-items:center;justify-content:center}
 
   <!-- ============ TITLE ============ -->
   <section class="screen on" id="scTitle">
-    <div class="home-top"><span class="brand-mark">♛ <b>CROWN COURT</b> <small id="rendererLabel" aria-live="polite"></small></span><button class="fullscreen-btn" data-fullscreen>⛶ Full screen</button></div>
+    <div class="home-top"><span class="brand-mark">♛ <b>CROWN COURT</b> <small id="rendererLabel" aria-live="polite"></small></span><div class="display-actions"><button class="fullscreen-btn browser-play-btn" data-browser-play aria-pressed="false">Using iPhone? Play without fullscreen</button><button class="fullscreen-btn" data-fullscreen>⛶ Full screen</button></div></div>
     <div class="hero-art" aria-hidden="true"><div class="hero-ring"></div><canvas data-art="lion"></canvas><span class="hero-stamp">YOUR COURT.<br>YOUR RULES.</span></div>
     <div class="half fadeUp home-copy">
       <div class="eyebrow">FROM THE STREET. TO THE THRONE.</div>
@@ -444,6 +446,7 @@ body{display:flex;align-items:center;justify-content:center}
     <div class="h2">Paused</div>
     <p id="graphicsStatus" role="status" aria-live="polite"></p>
     <button class="fullscreen-btn" data-fullscreen>⛶ Full screen</button>
+    <button class="fullscreen-btn browser-play-btn" data-browser-play aria-pressed="false">Using iPhone? Play without fullscreen</button>
     <button class="btn red md" id="btnResume"><span>Resume</span></button>
     <div class="row">
       <button class="btn dark sm" id="btnRestart"><span>Restart</span></button>

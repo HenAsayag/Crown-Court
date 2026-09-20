@@ -28,6 +28,15 @@ button,input{font:inherit}button{touch-action:manipulation}button:focus-visible,
 .fullscreen-btn{min-height:44px;padding:10px 16px;border:1px solid #e4b95888;border-radius:12px;background:#132539;color:#ffe1a0;font:700 12px system-ui;cursor:pointer;touch-action:manipulation}
 .fullscreen-btn:hover{background:#25415b}.fullscreen-btn:focus-visible{outline:3px solid #fff;outline-offset:3px}.fullscreen-btn:disabled{opacity:.6}
 #rotate .fullscreen-btn{margin-top:22px}
+.display-actions{display:flex;gap:8px;align-items:center}
+.browser-play-btn{border-color:#73ced9;background:#113746;color:#d9fbff}
+#rotate .browser-play-btn{display:block;margin:12px auto 0}
+@media(orientation:portrait){
+  html.browser-play #rotate{display:none}
+  html.browser-play #stage{opacity:1;pointer-events:auto;flex-shrink:0;width:844px;height:475px;transform:scale(var(--browser-play-scale));transform-origin:center}
+  html.browser-play #scTitle{padding-top:70px;padding-bottom:45px}
+  html.browser-play .home-copy .logo{font-size:64px}
+}
 #displayStatus{position:fixed;z-index:200;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:max-content;max-width:min(90vw,550px);border-radius:12px;background:#102333f5;color:#fff0cf;box-shadow:0 5px 30px #0009;font:500 14px/1.5 system-ui;text-align:center;pointer-events:none}
 #displayStatus:not(:empty){padding:14px 20px}
 @media(orientation:landscape){#hudTop{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}}

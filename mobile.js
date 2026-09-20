@@ -3,6 +3,25 @@
   const buttons = [...document.querySelectorAll('[data-fullscreen]')];
   const status = document.getElementById('displayStatus');
   const root = document.documentElement;
+  const browserButtons = [...document.querySelectorAll('[data-browser-play]')];
+  let browserPlay = false;
+  function fitBrowser() {
+    root.style.setProperty('--browser-play-scale', String(Math.min(1, root.clientWidth / 844)));
+  }
+  function playInBrowser() {
+    browserPlay = true;
+    root.classList.add('browser-play');
+    fitBrowser();
+    for (const button of browserButtons) {
+      button.textContent = '✓ Playing without fullscreen';
+      button.setAttribute('aria-pressed', 'true');
+    }
+    say('Browser play enabled — no fullscreen needed. Turn your iPhone sideways for a larger court.');
+  }
+  browserButtons.forEach(button => button.addEventListener('click', playInBrowser));
+  window.addEventListener('resize', fitBrowser);
+  window.visualViewport?.addEventListener('resize', fitBrowser);
+  fitBrowser();
   const standalone = window.matchMedia('(display-mode: standalone)');
   const fullscreenMode = window.matchMedia('(display-mode: fullscreen)');
   const active = () => document.fullscreenElement || document.webkitFullscreenElement;
@@ -44,14 +63,14 @@
       } else {
         const request = root.requestFullscreen || root.webkitRequestFullscreen;
         if (!request) {
-          say('Full screen is unavailable here. On iPhone: Safari → Share → Add to Home Screen. Then open the new icon and turn your phone sideways.');
+          say('Fullscreen is unavailable here. Tap “Using iPhone? Play without fullscreen”, or turn your phone sideways and play normally.');
           return;
         }
         await request.call(root);
         await landscape();
       }
     } catch {
-      say('This browser could not enter full screen. You can still play sideways, or open the site from your Home Screen.');
+      say(browserPlay ? 'Continue playing in browser mode — fullscreen is optional.' : 'Fullscreen was unavailable. Tap “Using iPhone? Play without fullscreen” to continue.');
     } finally {
       busy = false;
       sync();
